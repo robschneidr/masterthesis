@@ -17,8 +17,9 @@ class Node:
        self._type = _type
        self.children = set()
        self.parents = set()
-       self.auth = 1.0
-       self.hub = 1.0
+       self.auth = 0.
+       self.hub = 0.
+       self.trust = 0.
        
     def __hash__(self):
         return hash(self._id)
@@ -31,6 +32,17 @@ class Node:
      
     def isUser(self):
         return self._type == 'user'
+    
+    def setAuth(self, auth):
+        self.auth = auth
+        
+    def setHub(self, hub):
+        self.hub = hub
+    
+    def setTrust(self, trust):
+        self.trust = trust
+        
+        
      
 def NodeType_Document():
     return 'document'
