@@ -34,9 +34,27 @@ insights:
     TODO: make statistics about how different trust mechanisms alter auth and hub orders
     
     
+    06.03.
+    specifications for expose:
+        1. show hits converges to the same values regardless of rnd or 1.0 initialization
+        2. trust mechanics:
+            show that trust is able to alter the hits ranking
+            2 different versions of trust:
+                1. absolute value --> normalized similar to hits
+                2. average value --> classic average
+                    -> note that trust can not be determined by the node itself, but only
+                    by other nodes in connection with the node (a king who calls himself a king)
+        
     
-
-
+    structure of the webgraph:
+        internal vs external links
+        https://www.contentpowered.com/blog/many-external-links-articles/
+        avg somewhere around 15 external links, 100 internal links
+        build webgraph accordingly
+        problem: there are 1.8 billion websites on the internet, each of which has
+        15 external and 100 internal links. this is not realistically simulatable
+        on very small scale... with 20 nodes eg, the graph would almost be fully connected
+        
 
 '''
 
@@ -98,13 +116,32 @@ def normalize_trusts(graph, sum_trusts):
 
         
     
-        
+def HITS_iteration(graph, n_steps, trust_included=False, trust_normalized=False, auth=-1, hub=-1, trust=-1):
+    
+    HITS_init(graph, auth, hub, trust)
+    print_hubAuthTrust_values(graph) 
+    
+    for i in range(n_steps):
+        HITS_one_step(graph, trust_included, trust_normalized)
+    
+    sorted_nodes_auth = copy.deepcopy(graph.nodes)
+    sorted_nodes_auth.sort(key=sort_by_auth)
+    
+    sorted_nodes_hub = copy.deepcopy(graph.nodes)
+    sorted_nodes_hub.sort(key=sort_by_hub) 
+
+    sorted_nodes_trust = copy.deepcopy(graph.nodes)
+    sorted_nodes_trust.sort(key=sort_by_trust)
+    
+    print_hubAuthTrust_values(graph)
+    
+    return sorted_nodes_auth, sorted_nodes_hub, sorted_nodes_trust
         
         
         
         
 
-def HITS_one_step(graph, weighted_trust=False, trust_adjustment=False):
+def HITS_one_step(graph, trust_included=False, trust_normalized=False):
     sum_auths = 0.
     sum_hubs = 0.
     sum_trusts = 0.
@@ -112,33 +149,37 @@ def HITS_one_step(graph, weighted_trust=False, trust_adjustment=False):
     #values in the for loop.
     nodes_old = copy.deepcopy(graph.nodes)
     for node in graph.nodes:
-        if weighted_trust:
+        
+        if trust_included:
             node.auth = sum(nodes_old[p].hub * nodes_old[p].trust for p in node.parents)
         else:         
             node.auth = sum(nodes_old[p].hub for p in node.parents)
         sum_auths += node.auth
         
-    for node in graph.nodes:
-        if weighted_trust:
+        
+        if trust_included:
             node.hub = sum(nodes_old[c].auth * nodes_old[c].trust for c in node.children)
         else:
             node.hub = sum(nodes_old[c].auth for c in node.children)
         sum_hubs += node.hub
         
-    for node in graph.nodes:
-        if trust_adjustment:
+        
+        if trust_normalized:
             sum_parents = sum(nodes_old[p].trust * nodes_old[p].hub for p in node.parents)
             sum_children = sum(nodes_old[c].trust * nodes_old[c].auth for c in node.children)
+            sum_trusts += sum_parents + sum_children
         else:
             sum_parents = sum(nodes_old[p].trust for p in node.parents)
             sum_children = sum(nodes_old[c].trust for c in node.children)
-        if len(node.parents) > 0 or len(node.children) > 0:
-            node.trust = (sum_parents + sum_children) / (len(node.parents) + len(node.children))
-        #sum_trusts += sum_parents + sum_children
+            
+            if len(node.parents) > 0 or len(node.children) > 0:
+                node.trust = (sum_parents + sum_children) / (len(node.parents) + len(node.children))
     
     normalize_auths(graph, sum_auths)
-    normalize_hubs(graph, sum_hubs) 
-    #normalize_trusts(graph, sum_trusts)
+    normalize_hubs(graph, sum_hubs)
+    
+    if trust_normalized:
+        normalize_trusts(graph, sum_trusts)
         
 
         
@@ -174,127 +215,80 @@ def sort_by_hub(node):
 
 if __name__ == '__main__':
     
-    steps = 10
-    graph = Graph.create_random_weighted_directed_document_graph(20, 40)
-    #graph.visualize()
-    
-    HITS_init(graph, -1, -1, -1)
-    print_hubAuthTrust_values(graph)
+    n_steps = 20
+    #graph = Graph.create_random_weighted_directed_document_graph(20, 60)
+    graph = Graph.load_graph("rnd_20n_60e")
+    Graph.visualize(graph)
     print_parents_children(graph)
+    #Graph.save_graph(graph, "rnd_20n_60e")
+    
+    trust_included_id = 0
+    trust_normalized_id = 1
+    auth_id = 2
+    hub_id = 3
+    trust_id = 4
+    name_id = 5
+    
+    params = []
+    std_HITS_param = [False, False, 1, 1, 1, "standard hits"]
+    std_HITS_rndHubAuth_param = [False, False, -1, -1, 1, "standard hits, rnd hub auth vals"]
+    trust_HITS_normalized = [True, True, 1, 1, 1, "trust hits normalized"]
+    rnd_trust_HITS_normalized = [True, True, 1, 1, -1, "rnd trust hits normalized"]
+    rndTrust_rndHits_normalized = [True, True, -1, -1, -1, "rnd trust rnd hits normalized"]
+    trust_HITS_avg = [True, False, 1, 1, 1, "trust hits avg"]
+    rnd_trust_HITS_avg = [True, False, 1, 1, -1, "rnd trust hits avg"]
     
     
-    for i in range(steps):
-        HITS_one_step(graph)
-    print_hubAuthTrust_values(graph)
-    sorted_nodes1 = copy.deepcopy(graph.nodes)
-    sorted_nodes1.sort(key=sort_by_trust)
+    params.append(std_HITS_param)
+    #params.append(std_HITS_rndHubAuth_param)
+    #params.append(trust_HITS_normalized)
+    params.append(rndTrust_rndHits_normalized)
+    params.append(rnd_trust_HITS_normalized)
+    #params.append(trust_HITS_avg)
+    #params.append(rnd_trust_HITS_avg)
     
-    sorted_nodes1_auth = copy.deepcopy(graph.nodes)
-    sorted_nodes1_auth.sort(key=sort_by_auth)
+    sorted_nodes_auths = []
+    sorted_nodes_hubs = []
+    sorted_nodes_trusts = []
     
-    sorted_nodes1_hub = copy.deepcopy(graph.nodes)
-    sorted_nodes1_hub.sort(key=sort_by_hub)
-    
+    for param in params:
+        sorted_nodes_auth, sorted_nodes_hub, sorted_nodes_trust = HITS_iteration(graph,
+                                                                                 n_steps, 
+                                                                                 param[trust_included_id],
+                                                                                 param[trust_normalized_id],
+                                                                                 param[auth_id],
+                                                                                 param[hub_id],
+                                                                                 param[trust_id])
+        sorted_nodes_auths.append(sorted_nodes_auth)
+        sorted_nodes_hubs.append(sorted_nodes_hub)
+        sorted_nodes_trusts.append(sorted_nodes_trust)
         
         
-    HITS_init(graph, 1.0, 1.0, 1.0) 
-    print_hubAuthTrust_values(graph)
-    print_parents_children(graph)
-    
-    
-    for i in range(steps):
-        HITS_one_step(graph)
-    print_hubAuthTrust_values(graph)
+    for i in range(3):
+        if i == 0:
+            value_name = "auth"
+            vals = sorted_nodes_auths
+        elif i == 1:
+            value_name = "hub"
+            vals = sorted_nodes_hubs
+        else:
+            value_name = "trust"
+            vals = sorted_nodes_trusts
+                      
+        for i, param in enumerate(params):
+            print([node._id for node in vals[i]], "node " + value_name + " order " + param[name_id])
+            
+        print()
         
-    sorted_nodes2 = copy.deepcopy(graph.nodes)
-    sorted_nodes2.sort(key=sort_by_trust)
-    
-    sorted_nodes2_auth = copy.deepcopy(graph.nodes)
-    sorted_nodes2_auth.sort(key=sort_by_auth)
-    
-    sorted_nodes2_hub = copy.deepcopy(graph.nodes)
-    sorted_nodes2_hub.sort(key=sort_by_hub)
-    
-    
-    HITS_init(graph, 1.0, 1.0, 1.0) 
-    print_hubAuthTrust_values(graph)
-    print_parents_children(graph)
-    
-    
-    for i in range(steps):
-        HITS_one_step(graph, True)
-    print_hubAuthTrust_values(graph)
         
-    sorted_nodes3 = copy.deepcopy(graph.nodes)
-    sorted_nodes3.sort(key=sort_by_trust)
-    
-    sorted_nodes3_auth = copy.deepcopy(graph.nodes)
-    sorted_nodes3_auth.sort(key=sort_by_auth)
-    
-    sorted_nodes3_hub = copy.deepcopy(graph.nodes)
-    sorted_nodes3_hub.sort(key=sort_by_hub)
-    
-    
-    HITS_init(graph, 1.0, 1.0, 1.0) 
-    print_hubAuthTrust_values(graph)
-    print_parents_children(graph)
-    
-    
-    for i in range(steps):
-        HITS_one_step(graph, True, True)
-    print_hubAuthTrust_values(graph)
         
-    sorted_nodes4 = copy.deepcopy(graph.nodes)
-    sorted_nodes4.sort(key=sort_by_trust)
-    
-    sorted_nodes4_auth = copy.deepcopy(graph.nodes)
-    sorted_nodes4_auth.sort(key=sort_by_auth)
-    
-    sorted_nodes4_hub = copy.deepcopy(graph.nodes)
-    sorted_nodes4_hub.sort(key=sort_by_hub)
     
     
-    HITS_init(graph, 1, 1, -1) 
-    print_hubAuthTrust_values(graph)
-    print_parents_children(graph)
-    print("avg trust 5 before: ", sum([n.trust for n in graph.nodes]) / len(graph.nodes))
     
-    
-    for i in range(steps):
-        HITS_one_step(graph, weighted_trust=True, trust_adjustment=False)
-        print_hubAuthTrust_values(graph)
         
-    sorted_nodes5 = copy.deepcopy(graph.nodes)
-    sorted_nodes5.sort(key=sort_by_trust)
     
-    sorted_nodes5_auth = copy.deepcopy(graph.nodes)
-    sorted_nodes5_auth.sort(key=sort_by_auth)
-    
-    sorted_nodes5_hub = copy.deepcopy(graph.nodes)
-    sorted_nodes5_hub.sort(key=sort_by_hub)
-    
-    
-    print("node trust order 1", [node._id for node in sorted_nodes1])
-    print("node trust order 2", [node._id for node in sorted_nodes2])
-    print("node trust order 3", [node._id for node in sorted_nodes3])
-    print("node trust order 4", [node._id for node in sorted_nodes4])
-    print("node trust order 5", [node._id for node in sorted_nodes5])
-    
-    
-    print("node auth order 1 ", [node._id for node in sorted_nodes1_auth])
-    print("node auth order 2 ", [node._id for node in sorted_nodes2_auth])
-    print("node auth order 3 ", [node._id for node in sorted_nodes3_auth])
-    print("node auth order 4 ", [node._id for node in sorted_nodes4_auth])
-    print("node auth order 5 ", [node._id for node in sorted_nodes5_auth])
-    
-    print("node hub order 1  ", [node._id for node in sorted_nodes1_hub])
-    print("node hub order 2  ", [node._id for node in sorted_nodes2_hub])
-    print("node hub order 3  ", [node._id for node in sorted_nodes3_hub])
-    print("node hub order 4  ", [node._id for node in sorted_nodes4_hub])
-    print("node hub order 5  ", [node._id for node in sorted_nodes5_hub])
-    
-    print("avg trust 5 after: ", sum([n.trust for n in graph.nodes]) / len(graph.nodes))
-    
+    #print("avg trust 5 before: ", sum([n.trust for n in graph.nodes]) / len(graph.nodes))
+    #print("avg trust 5 after: ", sum([n.trust for n in graph.nodes]) / len(graph.nodes))
     
     
         

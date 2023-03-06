@@ -7,6 +7,7 @@ Created on Fri Feb 24 17:48:17 2023
 
 import random
 import networkx as nx
+import pickle
 
 
 
@@ -77,11 +78,21 @@ class Graph:
         self.edges = edges
         set_adjacency_sets(self.nodes, self.edges)
     
-    def visualize(self):
-        nxGraph = convert_digraph_to_networkx(self)
-        nx.draw_networkx(nxGraph, with_labels=True)
+
+
+def visualize(graph):
+    nxGraph = convert_digraph_to_networkx(graph)
+    nx.draw_networkx(nxGraph, with_labels=True)
+    
+def save_graph(graph, filename):
+    with open("../data/graphs/" + filename + ".pkl", "wb") as f:
+        pickle.dump(graph, f)
         
-        
+def load_graph(filename):
+    with open("../data/graphs/" + filename + ".pkl", "rb") as f:
+        graph = pickle.load(f)
+    return graph
+    
         
 
 def create_random_weighted_directed_document_graph(n_nodes, n_edges):
@@ -94,6 +105,9 @@ def create_random_weighted_directed_document_graph(n_nodes, n_edges):
         edges.update({(parent, child) : DirectedWeightedEdge(parent, child, random.random())}) 
     set_adjacency_sets(nodes, edges)
     return Graph(nodes, edges)
+
+
+    
 
 
 def set_adjacency_sets(nodes, edges):
