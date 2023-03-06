@@ -23,6 +23,18 @@ insights:
     
     ==> the prior is actually not the deciding factor. see node trust order
     
+    
+    01.03. change the trust mechanism to calculate average and no normalized
+    observation: the average trust in the network remains the same(?) during
+    the iterations
+    setting(1, 1, -1):
+    trust values  average out to a common value
+    
+    
+    TODO: make statistics about how different trust mechanisms alter auth and hub orders
+    
+    
+    
 
 
 
@@ -77,7 +89,7 @@ def normalize_hubs(graph, sum_hubs):
 def set_all_trusts(graph, trusts):
     for node, trust in zip(graph.nodes, trusts):
         node.setTrust(trust)
-    normalize_trusts(graph, sum(trusts))
+    #normalize_trusts(graph, sum(trusts))
         
 def normalize_trusts(graph, sum_trusts):
     for node in graph.nodes:
@@ -120,12 +132,13 @@ def HITS_one_step(graph, weighted_trust=False, trust_adjustment=False):
         else:
             sum_parents = sum(nodes_old[p].trust for p in node.parents)
             sum_children = sum(nodes_old[c].trust for c in node.children)
-        node.trust = sum_parents + sum_children
-        sum_trusts += sum_parents + sum_children
+        if len(node.parents) > 0 or len(node.children) > 0:
+            node.trust = (sum_parents + sum_children) / (len(node.parents) + len(node.children))
+        #sum_trusts += sum_parents + sum_children
     
     normalize_auths(graph, sum_auths)
     normalize_hubs(graph, sum_hubs) 
-    normalize_trusts(graph, sum_trusts)
+    #normalize_trusts(graph, sum_trusts)
         
 
         
@@ -161,8 +174,8 @@ def sort_by_hub(node):
 
 if __name__ == '__main__':
     
-    steps = 50
-    graph = Graph.create_random_weighted_directed_document_graph(75, 200)
+    steps = 10
+    graph = Graph.create_random_weighted_directed_document_graph(20, 40)
     #graph.visualize()
     
     HITS_init(graph, -1, -1, -1)
@@ -241,14 +254,15 @@ if __name__ == '__main__':
     sorted_nodes4_hub.sort(key=sort_by_hub)
     
     
-    HITS_init(graph, -1, -1, -1) 
+    HITS_init(graph, 1, 1, -1) 
     print_hubAuthTrust_values(graph)
     print_parents_children(graph)
+    print("avg trust 5 before: ", sum([n.trust for n in graph.nodes]) / len(graph.nodes))
     
     
     for i in range(steps):
-        HITS_one_step(graph, True, True)
-    print_hubAuthTrust_values(graph)
+        HITS_one_step(graph, weighted_trust=True, trust_adjustment=False)
+        print_hubAuthTrust_values(graph)
         
     sorted_nodes5 = copy.deepcopy(graph.nodes)
     sorted_nodes5.sort(key=sort_by_trust)
@@ -279,7 +293,7 @@ if __name__ == '__main__':
     print("node hub order 4  ", [node._id for node in sorted_nodes4_hub])
     print("node hub order 5  ", [node._id for node in sorted_nodes5_hub])
     
-    
+    print("avg trust 5 after: ", sum([n.trust for n in graph.nodes]) / len(graph.nodes))
     
     
     
