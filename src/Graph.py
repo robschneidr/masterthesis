@@ -8,6 +8,7 @@ Created on Fri Feb 24 17:48:17 2023
 import random
 import networkx as nx
 import pickle
+import numpy as np
 
 
 
@@ -21,6 +22,7 @@ class Node:
        self.auth = 0.
        self.hub = 0.
        self.trust = 0.
+       self.known_nodes = set()
        
     def __hash__(self):
         return hash(self._id)
@@ -34,14 +36,6 @@ class Node:
     def isUser(self):
         return self._type == 'user'
     
-    def setAuth(self, auth):
-        self.auth = auth
-        
-    def setHub(self, hub):
-        self.hub = hub
-    
-    def setTrust(self, trust):
-        self.trust = trust
         
         
      
@@ -78,7 +72,19 @@ class Graph:
         self.edges = edges
         set_adjacency_sets(self.nodes, self.edges)
     
+def get_n_documents(graph):
+    n_documents = 0
+    for n in graph.nodes:
+        if n._type == NodeType_Document():
+            n_documents += 1
+    return n_documents
 
+def get_n_users(graph):
+    n_users = 0
+    for n in graph.nodes:
+        if n._type == NodeType_User():
+            n_users += 1
+    return n_users
 
 def visualize(graph):
     nxGraph = convert_digraph_to_networkx(graph)
@@ -92,8 +98,47 @@ def load_graph(filename):
     with open("../data/graphs/" + filename + ".pkl", "rb") as f:
         graph = pickle.load(f)
     return graph
+
+def get_document_IDs(graph):
+    return set([n._id for n in graph.nodes if n.isDocument()])
     
+def get_user_IDs(graph):
+    return set([n._id for n in graph.nodes if n.isUser()])
+    
+    
+    
+
+def add_users(graph, n_users):
+    first_id = len(graph.nodes)
+    last_id = first_id + n_users
+    users = [Node(i, NodeType_User()) for i in range(first_id, last_id)] 
+    graph.nodes.extend(users)     
+    
+    
+    
+def get_rnd_known_nodes(graph, n_known_nodes):
+    node_ids = random.sample(get_document_IDs(graph), n_known_nodes)
+    return set([graph.nodes[id] for id in node_ids])
+
+def set_all_users_rnd_known_nodes(graph, n_known_nodes):
+    for n in graph.nodes:
+        if n.isUser():
+            n.known_nodes = get_rnd_known_nodes(graph, n_known_nodes)
+            
+def get_nodes_from_IDs(graph, IDs):
+    return [graph.nodes[ID] for ID in IDs]
+            
+def get_avg_trust_of_known_nodes(node):
+    return np.mean([kn.trust for kn in node.known_nodes])
+
+def get_rnd_document_node(graph):
+    document_node = graph.nodes[random.randint(0, len(graph.nodes))]
+    while document_node.isUser():
+        document_node = graph.nodes[random.randint(0, len(graph.nodes))]
+    return document_node
         
+    
+    
 
 def create_random_weighted_directed_document_graph(n_nodes, n_edges):
     

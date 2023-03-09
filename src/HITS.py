@@ -58,6 +58,23 @@ insights:
         15 external and 100 internal links. this is not realistically simulatable
         on very small scale... with 20 nodes eg, the graph would almost be fully connected
         
+        
+        
+    user inclusion:
+        a user is a node in the network that only has outgoing connections
+        
+        
+        
+    09.03.
+    
+    instead of deepcopying the auth hub trust values, perhaps it is better to deepcopy the graph itself for each
+    parameter setting
+    
+    considerations on trustworthiness: right now the trustworthiness between a connection from A to B is determined
+    solely by the trustworthiness of B. how about "individual trustworthiness" of each connection. isnt this a more
+    realistic concept since each node has an individual trust rating of the connection to another node?
+    
+    
 
 '''
 
@@ -89,7 +106,7 @@ def HITS_init(graph, auth=-1, hub=-1, trust=-1):
 
 def set_all_auths(graph, auths):
     for node, auth in zip(graph.nodes, auths):
-        node.setAuth(auth)
+        node.auth = auth
     normalize_auths(graph, sum(auths))
        
 def normalize_auths(graph, sum_auths):
@@ -99,7 +116,7 @@ def normalize_auths(graph, sum_auths):
         
 def set_all_hubs(graph, hubs):
     for node, hub in zip(graph.nodes, hubs):
-        node.setHub(hub)
+        node.hub = hub
     normalize_hubs(graph, sum(hubs))  
         
 def normalize_hubs(graph, sum_hubs):
@@ -109,14 +126,17 @@ def normalize_hubs(graph, sum_hubs):
         
 def set_all_trusts(graph, trusts):
     for node, trust in zip(graph.nodes, trusts):
-        node.setTrust(trust)
+        node.trust = trust
     #normalize_trusts(graph, sum(trusts))
         
 def normalize_trusts(graph, sum_trusts):
     for node in graph.nodes:
         node.trust /= sum_trusts
-    
+        
+        
 
+
+    
         
     
 def HITS_iteration(graph, n_steps, trust_included=False, trust_normalized=False, auth=-1, hub=-1, trust=-1):
@@ -127,30 +147,33 @@ def HITS_iteration(graph, n_steps, trust_included=False, trust_normalized=False,
     for i in range(n_steps):
         HITS_one_step(graph, trust_included, trust_normalized)
     
-    sorted_nodes_auth = copy.deepcopy(graph.nodes)
-    sorted_nodes_auth.sort(key=sort_by_auth)
-    
-    sorted_nodes_hub = copy.deepcopy(graph.nodes)
-    sorted_nodes_hub.sort(key=sort_by_hub) 
-
-    sorted_nodes_trust = copy.deepcopy(graph.nodes)
-    sorted_nodes_trust.sort(key=sort_by_trust)
-    
     print_hubAuthTrust_values(graph)
     
-    return sorted_nodes_auth, sorted_nodes_hub, sorted_nodes_trust
+    return copy.deepcopy(graph.nodes)
         
         
         
         
 
-def HITS_one_step(graph, trust_included=False, trust_normalized=False):
+def HITS_one_step(graph, trust_included=False, trust_normalized=False, users_engaged=False):
     sum_auths = 0.
     sum_hubs = 0.
     sum_trusts = 0.
     #nodes old is required so the algorithm does not take the already updated
     #values in the for loop.
     nodes_old = copy.deepcopy(graph.nodes)
+    
+    if users_engaged:
+        users = Graph.get_nodes_from_IDs(graph, Graph.get_user_IDs(graph))
+        
+        for user in users:
+            
+            avg_trust = Graph.get_avg_trust_of_known_nodes(user)
+            rnd_document_node = Graph.get_rnd_document_node(graph)
+            
+            
+        
+    
     for node in graph.nodes:
         
         if trust_included:
@@ -226,6 +249,25 @@ def print_parents_children(graph):
         print("node ", n._id, "parents: ", n.parents, ", children: ", n.children)       
     print()
     
+def print_known_nodes(graph):
+    for n in graph.nodes:
+        if n.isUser():
+            print("node ", n._id, "known nodes: ", [kn._id for kn in n.known_nodes], "avg trust: ", Graph.get_avg_trust_of_known_nodes(n))
+    print()
+    
+def get_sorted_nodes(nodes):
+    
+    sorted_nodes_auth = copy.deepcopy(nodes)
+    sorted_nodes_auth.sort(key=sort_by_auth)
+    
+    sorted_nodes_hub = copy.deepcopy(nodes)
+    sorted_nodes_hub.sort(key=sort_by_hub) 
+
+    sorted_nodes_trust = copy.deepcopy(nodes)
+    sorted_nodes_trust.sort(key=sort_by_trust)
+    
+    return sorted_nodes_auth, sorted_nodes_hub, sorted_nodes_trust
+    
     
 def sort_by_trust(node):
     return node.trust
@@ -261,28 +303,33 @@ def get_sorted_nodeIDs(params, sorted_nodes_auths, sorted_nodes_hubs, sorted_nod
             sorted_nodeIDs.append([node._id for node in vals[i]])
             print([node._id for node in vals[i]], "node " + value_name + " order " + param[name_id])
             
-            
+        print()
+        
+    print()
             
     return sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted_nodeIDs_trusts
+
+def plot_node_values():
+    pass
 
 def plot_node_rankings(params, sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted_nodeIDs_trusts):
     x = np.arange(0, len(sorted_nodeIDs_auths[0]))   
     fig, axs = plt.subplots(3, 1)
     for ID, param in zip(sorted_nodeIDs_auths, params): 
-        print(ID, param[name_id])
+        #print(ID, param[name_id])
         axs[0].plot(x, ID, label=param[name_id])
 
     axs[0].set_ylabel('Authority')
     #axs[0].grid(True)
     
     for ID, param in zip(sorted_nodeIDs_hubs, params): 
-        print(ID, param[name_id])
+        #print(ID, param[name_id])
         axs[1].plot(x, ID, label=param[name_id])
     axs[1].set_ylabel('Hub')
     #axs[1].grid(True)
     
     for ID, param in zip(sorted_nodeIDs_trusts, params): 
-        print(ID, param[name_id])
+        #print(ID, param[name_id])
         axs[2].plot(x, ID, label=param[name_id])
     axs[2].set_xlabel('Node Ranking from Lowest to Highest')
     axs[2].set_ylabel('Trust')
@@ -291,12 +338,24 @@ def plot_node_rankings(params, sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted
     fig.tight_layout()
     plt.legend(loc='best', bbox_to_anchor=(1.2, 1))
     plt.show()
+    
+    
+def set_params(*args):
+    params = []
+    for arg in args:
+        params.append(arg)
+    return params
+    
 
 
 if __name__ == '__main__':
     
     n_steps = 20
-    #graph = Graph.create_random_weighted_directed_document_graph(20, 60)
+    n_nodes = 20
+    n_edges = 60
+    n_users = n_nodes * 3
+    n_known_nodes = 5
+    #graph = Graph.create_random_weighted_directed_document_graph(n_nodes, n_edges)
     graph = Graph.load_graph("rnd_20n_60e")
     Graph.visualize(graph)
     print_parents_children(graph)
@@ -309,7 +368,6 @@ if __name__ == '__main__':
     trust_id = 4
     name_id = 5
     
-    params = []
     std_HITS_param = [False, False, 1, 1, 1, "standard hits"]
     std_HITS_rndHubAuth_param = [False, False, -1, -1, 1, "standard hits, rnd hub auth vals"]
     trust_HITS_normalized = [True, True, 1, 1, 1, "trust hits normalized"]
@@ -318,48 +376,65 @@ if __name__ == '__main__':
     trust_HITS_avg = [True, False, 1, 1, 1, "trust hits avg"]
     rnd_trust_HITS_avg = [True, False, 1, 1, -1, "rnd trust hits avg"]
     
+    params = set_params(std_HITS_param,
+                        std_HITS_rndHubAuth_param, 
+                        trust_HITS_normalized, 
+                        rnd_trust_HITS_normalized,  
+                        rndTrust_rndHits_normalized,  
+                        trust_HITS_avg,
+                        rnd_trust_HITS_avg)
     
-    params.append(std_HITS_param)
-    params.append(std_HITS_rndHubAuth_param)
-    params.append(trust_HITS_normalized)
-    params.append(rndTrust_rndHits_normalized)
-    params.append(rnd_trust_HITS_normalized)
-    #params.append(trust_HITS_avg)
-    #params.append(rnd_trust_HITS_avg)
+    
+    params_nodes = []
     
     sorted_nodes_auths = []
     sorted_nodes_hubs = []
     sorted_nodes_trusts = []
     
     for param in params:
-        sorted_nodes_auth, sorted_nodes_hub, sorted_nodes_trust = HITS_iteration(graph,
-                                                                                 n_steps, 
-                                                                                 param[trust_included_id],
-                                                                                 param[trust_normalized_id],
-                                                                                 param[auth_id],
-                                                                                 param[hub_id],
-                                                                                 param[trust_id])
+        
+        param_nodes = HITS_iteration(graph,
+                                     n_steps, 
+                                     param[trust_included_id],
+                                     param[trust_normalized_id],
+                                     param[auth_id],
+                                     param[hub_id],
+                                     param[trust_id])
+        
+        params_nodes.append(param_nodes)
+        
+        sorted_nodes_auth, sorted_nodes_hub, sorted_nodes_trust = get_sorted_nodes(param_nodes)
         sorted_nodes_auths.append(sorted_nodes_auth)
         sorted_nodes_hubs.append(sorted_nodes_hub)
         sorted_nodes_trusts.append(sorted_nodes_trust)
         
       
     
+    
+    
+    
+    
     sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted_nodeIDs_trusts = get_sorted_nodeIDs(params, sorted_nodes_auths, sorted_nodes_hubs, sorted_nodes_trusts)    
     
-    plot_node_rankings(params, sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted_nodeIDs_trusts)    
+    
+    
+    Graph.add_users(graph, 20)
+    print_parents_children(graph)
+    Graph.set_all_users_rnd_known_nodes(graph, n_known_nodes)
+    print_known_nodes(graph)
         
-    diff = mean_nodes_order_similarity([node._id for node in sorted_nodes_auths[0]], [node._id for node in sorted_nodes_auths[1]])
-    print(diff)    
         
         
     
     
     
-        
     
-    #print("avg trust 5 before: ", sum([n.trust for n in graph.nodes]) / len(graph.nodes))
-    #print("avg trust 5 after: ", sum([n.trust for n in graph.nodes]) / len(graph.nodes))
+    
+    
+    #plot_node_rankings(params, sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted_nodeIDs_trusts)        
+    #diff = mean_nodes_order_similarity([node._id for node in sorted_nodes_auths[0]], [node._id for node in sorted_nodes_auths[1]])
+    #print(diff)    
+        
     
     
         
