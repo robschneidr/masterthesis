@@ -27,6 +27,7 @@ notes:
     ==> the prior is actually not the deciding factor. see node trust order
     
     
+    
     01.03. change the trust mechanism to calculate average and no normalized
     observation: the average trust in the network remains the same(?) during
     the iterations
