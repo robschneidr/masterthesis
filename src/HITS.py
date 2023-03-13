@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 
 
 '''
-insights:
+notes:
     
     fixed initial trust values do not make sense,
     because trust just becomes a measure of overall connectedness.
@@ -209,6 +209,7 @@ def HITS_one_step(graph, trust_included=False, trust_normalized=False, users_eng
         
 
 def mean_nodes_order_similarity(nodeIDs_A, nodeIDs_B):
+    
      switched_order_A = [0 for _ in range(len(nodeIDs_A))]
      switched_order_B = [0 for _ in range(len(nodeIDs_B))]
      
@@ -229,31 +230,7 @@ def mean_nodes_order_similarity(nodeIDs_A, nodeIDs_B):
      
      return sum_differences
      
-     
-    
 
-
-
-def print_hubAuth_values(graph):
-    for n in graph.nodes:
-        print("node", n._id, " hub = ", n.hub, "   auth =", n.auth)
-    print()
-    
-def print_hubAuthTrust_values(graph):
-    for n in graph.nodes:
-        print("node", n._id, " hub = ", n.hub, "   auth =", n.auth, " trust = ", n.trust)
-    print()
-
-def print_parents_children(graph):
-    for n in graph.nodes:
-        print("node ", n._id, "parents: ", n.parents, ", children: ", n.children)       
-    print()
-    
-def print_known_nodes(graph):
-    for n in graph.nodes:
-        if n.isUser():
-            print("node ", n._id, "known nodes: ", [kn._id for kn in n.known_nodes], "avg trust: ", Graph.get_avg_trust_of_known_nodes(n))
-    print()
     
 def get_sorted_nodes(nodes):
     
@@ -308,6 +285,28 @@ def get_sorted_nodeIDs(params, sorted_nodes_auths, sorted_nodes_hubs, sorted_nod
     print()
             
     return sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted_nodeIDs_trusts
+
+
+def print_hubAuth_values(graph):
+    for n in graph.nodes:
+        print("node", n._id, " hub = ", n.hub, "   auth =", n.auth)
+    print()
+    
+def print_hubAuthTrust_values(graph):
+    for n in graph.nodes:
+        print("node", n._id, " hub = ", n.hub, "   auth =", n.auth, " trust = ", n.trust)
+    print()
+
+def print_parents_children(graph):
+    for n in graph.nodes:
+        print("node ", n._id, "parents: ", n.parents, ", children: ", n.children)       
+    print()
+    
+def print_known_nodes(graph):
+    for n in graph.nodes:
+        if n.isUser():
+            print("node ", n._id, "known nodes: ", [kn._id for kn in n.known_nodes], "avg trust: ", Graph.get_avg_trust_of_known_nodes(n))
+    print()
 
 def plot_node_values():
     pass

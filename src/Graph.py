@@ -105,16 +105,11 @@ def get_document_IDs(graph):
 def get_user_IDs(graph):
     return set([n._id for n in graph.nodes if n.isUser()])
     
-    
-    
-
 def add_users(graph, n_users):
     first_id = len(graph.nodes)
     last_id = first_id + n_users
     users = [Node(i, NodeType_User()) for i in range(first_id, last_id)] 
     graph.nodes.extend(users)     
-    
-    
     
 def get_rnd_known_nodes(graph, n_known_nodes):
     node_ids = random.sample(get_document_IDs(graph), n_known_nodes)
@@ -137,9 +132,6 @@ def get_rnd_document_node(graph):
         document_node = graph.nodes[random.randint(0, len(graph.nodes))]
     return document_node
         
-    
-    
-
 def create_random_weighted_directed_document_graph(n_nodes, n_edges):
     
     nodes = [Node(i, NodeType_Document()) for i in range(n_nodes)]
@@ -150,10 +142,6 @@ def create_random_weighted_directed_document_graph(n_nodes, n_edges):
         edges.update({(parent, child) : DirectedWeightedEdge(parent, child, random.random())}) 
     set_adjacency_sets(nodes, edges)
     return Graph(nodes, edges)
-
-
-    
-
 
 def set_adjacency_sets(nodes, edges):
     for e in edges.values():
