@@ -34,6 +34,7 @@ notes:
     trust values  average out to a common value
     
     
+    
     TODO: make statistics about how different trust mechanisms alter auth and hub orders
     
     
