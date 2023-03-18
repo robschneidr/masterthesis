@@ -11,6 +11,8 @@ import copy
 import numpy as np
 import matplotlib.pyplot as plt
 
+np.set_printoptions(precision=3, suppress=True)
+
 
 
 '''
@@ -77,62 +79,109 @@ notes:
     realistic concept since each node has an individual trust rating of the connection to another node?
     
     
+    16.03
+    
+    TODO: deepcopy graph. DONE
+    TODO: different connection concept
+        the network connectivity is shifting from edge centric (edges contain all the information to build the graph)
+        to node centric. nodes are central and contain information about its direct connectivity. edge information
+        for some purposes (e.g. drawing) will be collected from the nodes with a corresponding function. this will
+        help to not create inconsistencies btn. nodes and edges, as the data value will be gotten from nodes.
+        
+        
+    17.03
+    
+    TODO: include HITS selection of root set
+    
+    in a node centric approach the actual graph object is not needed (since all the graph is, is a list of nodes)
+    this saves a lot of graph.nodes access...
+    
+    
+    18.03.
+    
+    implementation of the new trust conecpt:
+        trust can only be given to the forward nodes, as a website generally not know what nodes point to it
+        
+    the computation of authority scores is unrealistic in a decentralized scenario. a website does not know
+    what other websites point towards it. however, the information will eventually tickle through anyways,
+    so it might not even be necessary
+    
+    
+                                                                
+    
+    
 
 '''
 
 
-def HITS_init(graph, auth=-1, hub=-1, trust=-1):
-    
+def HITS_init(nodes, edge_trust=False, auth=-1, hub=-1, trust=-1):
         
     if auth >= 0:
-        auths = [auth for i in range(len(graph.nodes))]
-        set_all_auths(graph, auths)
+        auths = [auth for i in range(len(nodes))]
+        set_all_auths(nodes, auths)
     else:
-        rnd_auths = [random.random() for i in range(len(graph.nodes))]
-        set_all_auths(graph, rnd_auths)
+        rnd_auths = [random.random() for i in range(len(nodes))]
+        set_all_auths(nodes, rnd_auths)
         
     if hub >= 0:
-        hubs = [hub for i in range(len(graph.nodes))]
-        set_all_hubs(graph, hubs)
+        hubs = [hub for i in range(len(nodes))]
+        set_all_hubs(nodes, hubs)
     else:
-        rnd_hubs = [random.random() for i in range(len(graph.nodes))]
-        set_all_hubs(graph, rnd_hubs)    
+        rnd_hubs = [random.random() for i in range(len(nodes))]
+        set_all_hubs(nodes, rnd_hubs)    
+    
     
     if trust >= 0:
-        trusts = [trust for i in range(len(graph.nodes))]
-        set_all_trusts(graph, trusts)
+        set_edge_trusts(nodes, trust)     
+        trusts = [trust for i in range(len(nodes))]
+        set_all_trusts(nodes, trusts)
+    #if trust is exactly -1, the random trust values from the graph initiation will be taken
+    elif trust == -1:
+        rnd_trusts = [random.random() for i in range(len(nodes))]
+        set_all_trusts(nodes, rnd_trusts)
     else:
-        rnd_trusts = [random.random() for i in range(len(graph.nodes))]
-        set_all_trusts(graph, rnd_trusts)
-        
+        set_edge_trusts(nodes)            
+        rnd_trusts = [random.random() for i in range(len(nodes))]
+        set_all_trusts(nodes, rnd_trusts)
+  
 
-def set_all_auths(graph, auths):
-    for node, auth in zip(graph.nodes, auths):
+def set_edge_trusts(nodes, val=-1):
+    for n in nodes:
+        for child, weight in n.edges.items():
+            if val < 0:
+                n.edges.update({child : random.random()})
+            else:
+                n.edges.update({child : val})
+            
+           
+
+def set_all_auths(nodes, auths):
+    for node, auth in zip(nodes, auths):
         node.auth = auth
-    normalize_auths(graph, sum(auths))
+    normalize_auths(nodes, sum(auths))
        
-def normalize_auths(graph, sum_auths):
-    for node in graph.nodes:
+def normalize_auths(nodes, sum_auths):
+    for node in nodes:
         node.auth /= sum_auths
         
         
-def set_all_hubs(graph, hubs):
-    for node, hub in zip(graph.nodes, hubs):
+def set_all_hubs(nodes, hubs):
+    for node, hub in zip(nodes, hubs):
         node.hub = hub
-    normalize_hubs(graph, sum(hubs))  
+    normalize_hubs(nodes, sum(hubs))  
         
-def normalize_hubs(graph, sum_hubs):
-    for node in graph.nodes:
+def normalize_hubs(nodes, sum_hubs):
+    for node in nodes:
         node.hub /= sum_hubs
         
         
-def set_all_trusts(graph, trusts):
-    for node, trust in zip(graph.nodes, trusts):
+def set_all_trusts(nodes, trusts):
+    for node, trust in zip(nodes, trusts):
         node.trust = trust
     #normalize_trusts(graph, sum(trusts))
         
-def normalize_trusts(graph, sum_trusts):
-    for node in graph.nodes:
+def normalize_trusts(nodes, sum_trusts):
+    for node in nodes:
         node.trust /= sum_trusts
         
         
@@ -141,73 +190,88 @@ def normalize_trusts(graph, sum_trusts):
     
         
     
-def HITS_iteration(graph, n_steps, trust_included=False, trust_normalized=False, auth=-1, hub=-1, trust=-1):
+def HITS_iteration(nodes, n_steps, trust_included=False, trust_normalized=False, edge_trust=False, auth=-1, hub=-1, trust=-1):
     
-    HITS_init(graph, auth, hub, trust)
-    print_hubAuthTrust_values(graph) 
+    HITS_init(nodes, edge_trust, auth, hub, trust)
+    print_hubAuthTrust_values(nodes)
+    print_parents_children(nodes)
     
     for i in range(n_steps):
-        HITS_one_step(graph, trust_included, trust_normalized)
+        HITS_one_step(nodes, trust_included, trust_normalized, edge_trust)
+        #print_hubAuthTrust_values(nodes)
     
-    print_hubAuthTrust_values(graph)
+    print_hubAuthTrust_values(nodes)
+    print_parents_children(nodes)
     
-    return copy.deepcopy(graph.nodes)
+    return nodes
         
         
         
         
 
-def HITS_one_step(graph, trust_included=False, trust_normalized=False, users_engaged=False):
+def HITS_one_step(nodes, trust_included=False, trust_normalized=False, edge_trust=False, users_engaged=False):
     sum_auths = 0.
     sum_hubs = 0.
     sum_trusts = 0.
     #nodes old is required so the algorithm does not take the already updated
     #values in the for loop.
-    nodes_old = copy.deepcopy(graph.nodes)
+    nodes_old = copy.deepcopy(nodes)
     
     if users_engaged:
-        users = Graph.get_nodes_from_IDs(graph, Graph.get_user_IDs(graph))
+        users = Graph.get_nodes_from_IDs(nodes, Graph.get_user_IDs(nodes))
         
         for user in users:
             
             avg_trust = Graph.get_avg_trust_of_known_nodes(user)
-            rnd_document_node = Graph.get_rnd_document_node(graph)
+            rnd_document_node = Graph.get_rnd_document_node(nodes)
             
             
         
     
-    for node in graph.nodes:
+    for node in nodes:
+        
+        parents = node.parents
+        children = node.children
         
         if trust_included:
-            node.auth = sum(nodes_old[p].hub * nodes_old[p].trust for p in node.parents)
+            if edge_trust:
+                node.auth = sum(nodes_old[p._id].hub * nodes_old[p._id].edges.get(node._id) for p in parents)
+            else:
+                node.auth = sum(nodes_old[p._id].hub * nodes_old[p._id].trust for p in parents)
         else:         
-            node.auth = sum(nodes_old[p].hub for p in node.parents)
+            node.auth = sum(nodes_old[p._id].hub for p in parents)
         sum_auths += node.auth
         
         
         if trust_included:
-            node.hub = sum(nodes_old[c].auth * nodes_old[c].trust for c in node.children)
+            if edge_trust:
+                node.hub = sum(nodes_old[c._id].auth * nodes_old[node._id].edges.get(c._id) for c in children)
+            else:
+                node.hub = sum(nodes_old[c._id].auth * nodes_old[c._id].trust for c in children)
+                
         else:
-            node.hub = sum(nodes_old[c].auth for c in node.children)
+            node.hub = sum(nodes_old[c._id].auth for c in children)
         sum_hubs += node.hub
         
         
         if trust_normalized:
-            sum_parents = sum(nodes_old[p].trust * nodes_old[p].hub for p in node.parents)
-            sum_children = sum(nodes_old[c].trust * nodes_old[c].auth for c in node.children)
+            sum_parents = sum(nodes_old[p._id].trust * nodes_old[p._id].hub for p in parents)
+            sum_children = sum(nodes_old[c._id].trust * nodes_old[c._id].auth for c in children)
             sum_trusts += sum_parents + sum_children
         else:
-            sum_parents = sum(nodes_old[p].trust for p in node.parents)
-            sum_children = sum(nodes_old[c].trust for c in node.children)
+            sum_parents = sum(nodes_old[p._id].trust for p in parents)
+            sum_children = sum(nodes_old[c._id].trust for c in children)
             
-            if len(node.parents) > 0 or len(node.children) > 0:
-                node.trust = (sum_parents + sum_children) / (len(node.parents) + len(node.children))
+            if len(parents) > 0 or len(children) > 0:
+                node.trust = (sum_parents + sum_children) / (len(parents) + len(children))
     
-    normalize_auths(graph, sum_auths)
-    normalize_hubs(graph, sum_hubs)
+    normalize_auths(nodes, sum_auths)
+    normalize_hubs(nodes, sum_hubs)
     
     if trust_normalized:
-        normalize_trusts(graph, sum_trusts)
+        normalize_trusts(nodes, sum_trusts)
+        
+    return nodes
         
 
 def mean_nodes_order_similarity(nodeIDs_A, nodeIDs_B):
@@ -289,23 +353,31 @@ def get_sorted_nodeIDs(params, sorted_nodes_auths, sorted_nodes_hubs, sorted_nod
     return sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted_nodeIDs_trusts
 
 
-def print_hubAuth_values(graph):
-    for n in graph.nodes:
-        print("node", n._id, " hub = ", n.hub, "   auth =", n.auth)
-    print()
+
     
-def print_hubAuthTrust_values(graph):
-    for n in graph.nodes:
-        print("node", n._id, " hub = ", n.hub, "   auth =", n.auth, " trust = ", n.trust)
+    
+
+
+
+'''_______________________________UTILS_____________________________________'''  
+
+def set_params(*args):
+    return [arg for arg in args] 
+        
+
+def print_hubAuthTrust_values(nodes):
+    for n in nodes:
+        print("node", n._id, " hub = ", n.hub, "   auth =", n.auth, " node_trust = ", n.trust)
     print()
 
-def print_parents_children(graph):
-    for n in graph.nodes:
-        print("node ", n._id, "parents: ", n.parents, ", children: ", n.children)       
+def print_parents_children(nodes):
+    for n in nodes:
+        print("node ", n._id, "parents: ", [p._id for p in n.parents], ", children: ", [c._id for c in n.children], "edges: ", [(e, v) for e, v in n.edges.items()])   
+        
     print()
     
-def print_known_nodes(graph):
-    for n in graph.nodes:
+def print_known_nodes(nodes):
+    for n in nodes:
         if n.isUser():
             print("node ", n._id, "known nodes: ", [kn._id for kn in n.known_nodes], "avg trust: ", Graph.get_avg_trust_of_known_nodes(n))
     print()
@@ -341,41 +413,40 @@ def plot_node_rankings(params, sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted
     plt.show()
     
     
-def set_params(*args):
-    params = []
-    for arg in args:
-        params.append(arg)
-    return params
+'''_______________________________UTILS_____________________________________'''
     
 
 
 if __name__ == '__main__':
     
-    n_steps = 20
+    n_steps = 500
     n_nodes = 20
     n_edges = 60
     n_users = n_nodes * 3
     n_known_nodes = 5
-    #graph = Graph.create_random_weighted_directed_document_graph(n_nodes, n_edges)
-    graph = Graph.load_graph("rnd_20n_60e")
-    Graph.visualize(graph)
-    print_parents_children(graph)
-    #Graph.save_graph(graph, "rnd_20n_60e")
+    #base_nodes = Graph.create_random_weighted_directed_document_nodes(n_nodes, n_edges)
+    base_nodes = Graph.load_graph("rnd_20n_60e")
+    Graph.visualize(base_nodes)
+    print_parents_children(base_nodes)
+    #Graph.save_graph(base_nodes, "rnd_20n_60e")
+    
     
     trust_included_id = 0
     trust_normalized_id = 1
-    auth_id = 2
-    hub_id = 3
-    trust_id = 4
-    name_id = 5
+    edge_trust_id = 2
+    auth_id = 3
+    hub_id = 4
+    trust_id = 5
+    name_id = 6
     
-    std_HITS_param = [False, False, 1, 1, 1, "standard hits"]
-    std_HITS_rndHubAuth_param = [False, False, -1, -1, 1, "standard hits, rnd hub auth vals"]
-    trust_HITS_normalized = [True, True, 1, 1, 1, "trust hits normalized"]
-    rnd_trust_HITS_normalized = [True, True, 1, 1, -1, "rnd trust hits normalized"]
-    rndTrust_rndHits_normalized = [True, True, -1, -1, -1, "rnd trust rnd hits normalized"]
-    trust_HITS_avg = [True, False, 1, 1, 1, "trust hits avg"]
-    rnd_trust_HITS_avg = [True, False, 1, 1, -1, "rnd trust hits avg"]
+    std_HITS_param = [False, False, False, 1, 1, 1, "standard hits"]
+    std_HITS_rndHubAuth_param = [False, False, False, -1, -1, 1, "standard hits, rnd hub auth vals"]
+    trust_HITS_normalized = [True, True, False, 1, 1, 1, "trust hits normalized"]
+    rnd_trust_HITS_normalized = [True, True, False, 1, 1, -1, "rnd trust hits normalized"]
+    rndTrust_rndHits_normalized = [True, True, False, -1, -1, -1, "rnd trust rnd hits normalized"]
+    trust_HITS_avg = [True, False, False, 1, 1, 1, "trust hits avg"]
+    rnd_trust_HITS_avg = [True, False, False, 1, 1, -1, "rnd trust hits avg"]
+    edge_trust_HITS = [True, False, True, 1, 1, -1, "edge trust"]
     
     params = set_params(std_HITS_param,
                         std_HITS_rndHubAuth_param, 
@@ -383,28 +454,38 @@ if __name__ == '__main__':
                         rnd_trust_HITS_normalized,  
                         rndTrust_rndHits_normalized,  
                         trust_HITS_avg,
-                        rnd_trust_HITS_avg)
+                        rnd_trust_HITS_avg,
+                        edge_trust_HITS)
     
+    params = [params[0], params[-1]]
     
-    params_nodes = []
+    node_copies = [copy.deepcopy(base_nodes) for nodes in range(len(params))]
+    
     
     sorted_nodes_auths = []
     sorted_nodes_hubs = []
     sorted_nodes_trusts = []
     
-    for param in params:
+    all_nodes = []
+    
+    for nodes, param in zip(node_copies, params):
         
-        param_nodes = HITS_iteration(graph,
-                                     n_steps, 
-                                     param[trust_included_id],
-                                     param[trust_normalized_id],
-                                     param[auth_id],
-                                     param[hub_id],
-                                     param[trust_id])
+        print("\n\n", param[name_id], "\n")
+        #print_parents_children(nodes)
+        HITS_iteration(nodes,
+                       n_steps, 
+                       param[trust_included_id],
+                       param[trust_normalized_id],
+                       param[edge_trust_id],
+                       param[auth_id],
+                       param[hub_id],
+                       param[trust_id])
+        #print_parents_children(nodes)
+        all_nodes.append(nodes)
         
-        params_nodes.append(param_nodes)
         
-        sorted_nodes_auth, sorted_nodes_hub, sorted_nodes_trust = get_sorted_nodes(param_nodes)
+        
+        sorted_nodes_auth, sorted_nodes_hub, sorted_nodes_trust = get_sorted_nodes(nodes)
         sorted_nodes_auths.append(sorted_nodes_auth)
         sorted_nodes_hubs.append(sorted_nodes_hub)
         sorted_nodes_trusts.append(sorted_nodes_trust)
@@ -419,10 +500,14 @@ if __name__ == '__main__':
     
     
     
-    Graph.add_users(graph, 20)
-    print_parents_children(graph)
-    Graph.set_all_users_rnd_known_nodes(graph, n_known_nodes)
-    print_known_nodes(graph)
+    #print_parents_children(nodes)
+    
+    '''Graph.add_users(nodes, 20)
+    print_parents_children(nodes)
+    Graph.set_all_users_rnd_known_nodes(nodes, n_known_nodes)
+    print_known_nodes(nodes)'''
+    
+
         
         
         
@@ -438,12 +523,10 @@ if __name__ == '__main__':
         
     
     
-        
+       
         
         
  
-        
-        
         
         
         

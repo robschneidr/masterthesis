@@ -17,8 +17,9 @@ class Node:
     def __init__(self, _id, _type):
        self._id = _id
        self._type = _type
-       self.children = set()
-       self.parents = set()
+       self.children = []
+       self.parents = []
+       self.edges = dict()
        self.auth = 0.
        self.hub = 0.
        self.trust = 0.
@@ -29,6 +30,9 @@ class Node:
     
     def __eq__(self, other):
         return self._id == other._id  
+    
+    def __str__(self):
+        return str(self._id)
 
     def isDocument(self):
         return self._type == 'document'
@@ -36,58 +40,120 @@ class Node:
     def isUser(self):
         return self._type == 'user'
     
+
+    
         
-        
+def EdgeTrustInit():
+    return 1       
      
 def NodeType_Document():
     return 'document'
 
 def NodeType_User():
     return 'user'
-
-
-class DirectedWeightedEdge:
-    
-    def __init__(self, parent, child, weight):
-        self.parent = parent
-        self.child = child
-        self.weight = weight
         
-    def __hash__(self):
-        return hash((self.parent, self.child))
+def get_node(nodes, _id):
+    return nodes[_id]
+
+'''def get_node(nodes, _id):
+    for n in nodes:
+        if n._id == _id:
+            return n
+    return None'''
     
-    def __eq__(self, other):
-        return self.parent == other.parent and self.child == other.child
+        
+def get_edges(nodes):
+    edges = []
+    for n in nodes:
+        for child in n.children:
+            edges.append((n, child))
+    return edges
         
         
-    def data_to_tuple(self):
-        return (self.parent, self.child, self.weight)
-
-
-
-class Graph:
     
-    def __init__(self, nodes, edges):
-        self.nodes = nodes
-        self.edges = edges
-        set_adjacency_sets(self.nodes, self.edges)
-    
-def get_n_documents(graph):
+def get_n_documents(nodes):
     n_documents = 0
-    for n in graph.nodes:
+    for n in nodes:
         if n._type == NodeType_Document():
             n_documents += 1
     return n_documents
 
-def get_n_users(graph):
+def get_n_users(nodes):
     n_users = 0
-    for n in graph.nodes:
+    for n in nodes:
         if n._type == NodeType_User():
             n_users += 1
     return n_users
 
-def visualize(graph):
-    nxGraph = convert_digraph_to_networkx(graph)
+
+
+def get_document_IDs(nodes):
+    return set([n._id for n in nodes if n.isDocument()])
+    
+def get_user_IDs(nodes):
+    return set([n._id for n in nodes if n.isUser()])
+    
+def add_users(nodes, n_users):
+    first_id = len(nodes)
+    last_id = first_id + n_users
+    users = [Node(i, NodeType_User()) for i in range(first_id, last_id)] 
+    nodes.extend(users)     
+    
+def get_rnd_known_nodes(nodes, n_known_nodes):
+    node_ids = random.sample(get_document_IDs(nodes), n_known_nodes)
+    return set([nodes[id] for id in node_ids])
+
+def set_all_users_rnd_known_nodes(nodes, n_known_nodes):
+    for n in nodes:
+        if n.isUser():
+            n.known_nodes = get_rnd_known_nodes(nodes, n_known_nodes)
+            
+def get_nodes_from_IDs(nodes, IDs):
+    return [get_node(nodes, ID) for ID in IDs]
+
+            
+def get_avg_trust_of_known_nodes(node):
+    return np.mean([kn.trust for kn in node.known_nodes])
+
+def get_rnd_document_node(nodes):
+    document_node = get_node(nodes, random.randint(0, len(nodes)))
+    while document_node.isUser():
+        document_node = get_node(nodes, random.randint(0, len(nodes)))
+    return document_node
+        
+def create_random_weighted_directed_document_nodes(n_nodes, n_edges):
+    
+    nodes = [Node(i, NodeType_Document()) for i in range(n_nodes)]
+    _edges = set()
+    #auxiliary set that helps the while loop create exactly n_edges
+    #_edges is not used beyond this function
+    while len(_edges) < n_edges:
+        parent_id = random.randint(0, n_nodes - 1)
+        child_id = random.randint(0, n_nodes - 1)
+        if (parent_id, child_id) not in _edges:
+            parent = get_node(nodes, parent_id)         
+            child = get_node(nodes, child_id)
+            parent.children.append(child)
+            child.parents.append(parent)
+            parent.edges.update({child_id : random.random()})
+            _edges.add((parent_id, child_id))
+    
+    return nodes
+
+
+'''________________________UTILS_________________________________________'''
+
+def convert_nodes_to_networkx(nodes):
+    nxGraph = nx.DiGraph()
+    edges = get_edges(nodes)
+    nx_edges = []
+    for parent, child in edges:
+        nx_edges.append((parent._id, child._id, parent.edges.get(child._id)))
+    nxGraph.add_weighted_edges_from(nx_edges)
+    return nxGraph
+
+def visualize(nodes):
+    nxGraph = convert_nodes_to_networkx(nodes)
     nx.draw_networkx(nxGraph, with_labels=True)
     
 def save_graph(graph, filename):
@@ -99,59 +165,24 @@ def load_graph(filename):
         graph = pickle.load(f)
     return graph
 
-def get_document_IDs(graph):
-    return set([n._id for n in graph.nodes if n.isDocument()])
-    
-def get_user_IDs(graph):
-    return set([n._id for n in graph.nodes if n.isUser()])
-    
-def add_users(graph, n_users):
-    first_id = len(graph.nodes)
-    last_id = first_id + n_users
-    users = [Node(i, NodeType_User()) for i in range(first_id, last_id)] 
-    graph.nodes.extend(users)     
-    
-def get_rnd_known_nodes(graph, n_known_nodes):
-    node_ids = random.sample(get_document_IDs(graph), n_known_nodes)
-    return set([graph.nodes[id] for id in node_ids])
+'''________________________UTILS_________________________________________'''
 
-def set_all_users_rnd_known_nodes(graph, n_known_nodes):
-    for n in graph.nodes:
-        if n.isUser():
-            n.known_nodes = get_rnd_known_nodes(graph, n_known_nodes)
-            
-def get_nodes_from_IDs(graph, IDs):
-    return [graph.nodes[ID] for ID in IDs]
-            
-def get_avg_trust_of_known_nodes(node):
-    return np.mean([kn.trust for kn in node.known_nodes])
 
-def get_rnd_document_node(graph):
-    document_node = graph.nodes[random.randint(0, len(graph.nodes))]
-    while document_node.isUser():
-        document_node = graph.nodes[random.randint(0, len(graph.nodes))]
-    return document_node
-        
-def create_random_weighted_directed_document_graph(n_nodes, n_edges):
-    
-    nodes = [Node(i, NodeType_Document()) for i in range(n_nodes)]
-    edges = {}
-    while len(edges) < n_edges:
-        parent = random.randint(0, n_nodes - 1)
-        child = random.randint(0, n_nodes - 1)
-        edges.update({(parent, child) : DirectedWeightedEdge(parent, child, random.random())}) 
-    set_adjacency_sets(nodes, edges)
-    return Graph(nodes, edges)
 
-def set_adjacency_sets(nodes, edges):
-    for e in edges.values():
-        nodes[e.parent].children.add(e.child)
-        nodes[e.child].parents.add(e.parent)
 
-def convert_digraph_to_networkx(digraph):
-    nxGraph = nx.DiGraph()
-    nxGraph.add_weighted_edges_from([e.data_to_tuple() for e in digraph.edges.values()])
-    return nxGraph
+
+
+'''__________________________OUTDATED_________________________________'''
+'''
+
+
+
+
+
+
+
+'''
+'''__________________________OUTDATED_________________________________'''
     
     
 

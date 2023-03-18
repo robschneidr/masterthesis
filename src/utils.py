@@ -11,7 +11,34 @@ import Graph
 
 
 
-print(np.arange(0, 100, 1))
+def dothis():
+    return 0
+
+def dothat():
+    return 1
+
+def setA(ana, func):
+    ana.func()
+
+class A:
+    
+    def __init__(self):
+        self.c = 2
+        
+    def do1(self):
+        self.c = 5
 
 
-print(set([(1, 5, 0.5)]))
+
+if __name__ == "__main__":
+    
+    ana = A()
+    print(ana.c)
+    
+    #setA(ana, dothat)
+    setA(ana, ana.do1)
+    print(ana.c)
+    
+    
+    
+    
