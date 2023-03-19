@@ -52,8 +52,8 @@ def NodeType_Document():
 def NodeType_User():
     return 'user'
         
-def get_node(nodes, _id):
-    return nodes[_id]
+'''def get_node(nodes, _id):
+    return nodes[_id]'''
 
 '''def get_node(nodes, _id):
     for n in nodes:
@@ -109,16 +109,17 @@ def set_all_users_rnd_known_nodes(nodes, n_known_nodes):
             n.known_nodes = get_rnd_known_nodes(nodes, n_known_nodes)
             
 def get_nodes_from_IDs(nodes, IDs):
-    return [get_node(nodes, ID) for ID in IDs]
+    return [nodes[_id] for _id in IDs]
 
             
 def get_avg_trust_of_known_nodes(node):
     return np.mean([kn.trust for kn in node.known_nodes])
 
 def get_rnd_document_node(nodes):
-    document_node = get_node(nodes, random.randint(0, len(nodes)))
+    max_index = len(nodes) - 1
+    document_node = nodes[random.randint(0, max_index)]
     while document_node.isUser():
-        document_node = get_node(nodes, random.randint(0, len(nodes)))
+        document_node = nodes[random.randint(0, max_index)]
     return document_node
         
 def create_random_weighted_directed_document_nodes(n_nodes, n_edges):
@@ -127,12 +128,13 @@ def create_random_weighted_directed_document_nodes(n_nodes, n_edges):
     _edges = set()
     #auxiliary set that helps the while loop create exactly n_edges
     #_edges is not used beyond this function
+    max_index = n_nodes - 1
     while len(_edges) < n_edges:
-        parent_id = random.randint(0, n_nodes - 1)
-        child_id = random.randint(0, n_nodes - 1)
+        parent_id = random.randint(0, max_index)
+        child_id = random.randint(0, max_index)
         if (parent_id, child_id) not in _edges:
-            parent = get_node(nodes, parent_id)         
-            child = get_node(nodes, child_id)
+            parent = nodes[parent_id]         
+            child = nodes[child_id]
             parent.children.append(child)
             child.parents.append(parent)
             parent.edges.update({child_id : random.random()})

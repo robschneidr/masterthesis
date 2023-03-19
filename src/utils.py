@@ -8,6 +8,7 @@ Created on Fri Feb 24 18:04:28 2023
 
 import numpy as np
 import Graph
+import random
 
 
 
@@ -32,12 +33,7 @@ class A:
 
 if __name__ == "__main__":
     
-    ana = A()
-    print(ana.c)
-    
-    #setA(ana, dothat)
-    setA(ana, ana.do1)
-    print(ana.c)
+    print(random.randint(0, 1))
     
     
     

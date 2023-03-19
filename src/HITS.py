@@ -38,7 +38,7 @@ notes:
     
     
     
-    TODO: make statistics about how different trust mechanisms alter auth and hub orders
+    TODo: make statistics about how different trust mechanisms alter auth and hub orders. DONE
     
     
     06.03.
@@ -81,8 +81,8 @@ notes:
     
     16.03
     
-    TODO: deepcopy graph. DONE
-    TODO: different connection concept
+    TODo: deepcopy graph. DONE
+    TODo: different connection concept. DONE
         the network connectivity is shifting from edge centric (edges contain all the information to build the graph)
         to node centric. nodes are central and contain information about its direct connectivity. edge information
         for some purposes (e.g. drawing) will be collected from the nodes with a corresponding function. this will
@@ -91,7 +91,7 @@ notes:
         
     17.03
     
-    TODO: include HITS selection of root set
+    TODo: include HITS selection of root set. DONE
     
     in a node centric approach the actual graph object is not needed (since all the graph is, is a list of nodes)
     this saves a lot of graph.nodes access...
@@ -106,8 +106,34 @@ notes:
     what other websites point towards it. however, the information will eventually tickle through anyways,
     so it might not even be necessary
     
-    
+    ==> what ways does a website have to identify the website a user came from? -> referer header
                                                                 
+    
+    19.03.
+    
+    included root set selection into hits
+    observation: hub and authority values seem to be different for each run, when nodes are randomly selected
+    for the root set. is this a good property of hits? (probably not..)
+    
+    TODO: user inclusion
+    
+        -> user inclusion problem: what is the max index in the get_root_set function?
+        
+    TODO: solve normalization problem: due to the smaller (root) subsets, the normalization
+        values will get smaller and disturb the overall hits ranking. imagine for example
+        that conincidentally one node gets selected more often in the root sets than other nodes,
+        then this node's hub and auth values will be larger due to the fact that normalization
+        of smaller sets yield higher values. eg. normalize initial auth score of 1 under 5 nodes
+        means 1 value of 1/5 for each node. with 20 nodes the value is 1/20
+        
+        ==> solved (probably) by summing the auth, hub, trust values over all the nodes of the
+        network instead of only summing over subset every time.
+        the small ranking discrepancies btn std hits and std hits user engagement very likely
+        come from the fact that a, h, t values of the user nodes are also taken into account.
+        
+    last item worked on: hits 215 max index
+    
+    
     
     
 
@@ -184,24 +210,41 @@ def normalize_trusts(nodes, sum_trusts):
     for node in nodes:
         node.trust /= sum_trusts
         
-        
+def get_root_set(nodes, size, IDs=None):
+    max_index = len(nodes) - 1
+    #max_index = 19
+    id_set = set()
+    if IDs is None:
+        while len(id_set) < size:
+            id_set.add(random.randint(0, max_index))
+        return [nodes[_id] for _id in id_set]
+    else:
+        return [nodes[_id] for _id in IDs]
 
-
     
-        
     
-def HITS_iteration(nodes, n_steps, trust_included=False, trust_normalized=False, edge_trust=False, auth=-1, hub=-1, trust=-1):
+def HITS_iteration(nodes, n_search_queries, root_set_size, n_steps,
+                   trust_included=False, trust_normalized=False, edge_trust=False, edge_trust_auth=False, users_engaged=False, 
+                   auth=-1, hub=-1, trust=-1):
     
-    HITS_init(nodes, edge_trust, auth, hub, trust)
+    
     print_hubAuthTrust_values(nodes)
-    print_parents_children(nodes)
+    #print_parents_children(nodes)
     
-    for i in range(n_steps):
-        HITS_one_step(nodes, trust_included, trust_normalized, edge_trust)
+    
+    for _ in range(n_search_queries):
+        
+        root_set_IDs = None
+        root_set = get_root_set(nodes, root_set_size, root_set_IDs)
+        print([n._id for n in root_set])
         #print_hubAuthTrust_values(nodes)
     
+        for _ in range(n_steps):
+            HITS_one_step(nodes, root_set, trust_included, trust_normalized, edge_trust, edge_trust_auth)
+            #print_hubAuthTrust_values(nodes)
+    
     print_hubAuthTrust_values(nodes)
-    print_parents_children(nodes)
+    #print_parents_children(nodes)
     
     return nodes
         
@@ -209,15 +252,16 @@ def HITS_iteration(nodes, n_steps, trust_included=False, trust_normalized=False,
         
         
 
-def HITS_one_step(nodes, trust_included=False, trust_normalized=False, edge_trust=False, users_engaged=False):
+def HITS_one_step(full_nodes, subset_nodes, trust_included, trust_normalized, edge_trust, edge_trust_auth, users_engaged=False):
     sum_auths = 0.
     sum_hubs = 0.
     sum_trusts = 0.
     #nodes old is required so the algorithm does not take the already updated
     #values in the for loop.
-    nodes_old = copy.deepcopy(nodes)
+    nodes_old = copy.deepcopy(full_nodes)
     
     if users_engaged:
+        
         users = Graph.get_nodes_from_IDs(nodes, Graph.get_user_IDs(nodes))
         
         for user in users:
@@ -225,17 +269,18 @@ def HITS_one_step(nodes, trust_included=False, trust_normalized=False, edge_trus
             avg_trust = Graph.get_avg_trust_of_known_nodes(user)
             rnd_document_node = Graph.get_rnd_document_node(nodes)
             
-            
-        
-    
-    for node in nodes:
+   
+    for node in subset_nodes:
         
         parents = node.parents
         children = node.children
         
         if trust_included:
             if edge_trust:
-                node.auth = sum(nodes_old[p._id].hub * nodes_old[p._id].edges.get(node._id) for p in parents)
+                if edge_trust_auth:
+                    node.auth = sum(nodes_old[p._id].hub * nodes_old[p._id].edges.get(node._id) for p in parents)
+                else:
+                    node.auth = sum(nodes_old[p._id].hub for p in parents)
             else:
                 node.auth = sum(nodes_old[p._id].hub * nodes_old[p._id].trust for p in parents)
         else:         
@@ -265,11 +310,11 @@ def HITS_one_step(nodes, trust_included=False, trust_normalized=False, edge_trus
             if len(parents) > 0 or len(children) > 0:
                 node.trust = (sum_parents + sum_children) / (len(parents) + len(children))
     
-    normalize_auths(nodes, sum_auths)
-    normalize_hubs(nodes, sum_hubs)
+    normalize_auths(subset_nodes, sum(n.auth for n in full_nodes))
+    normalize_hubs(subset_nodes, sum(n.hub for n in full_nodes))
     
     if trust_normalized:
-        normalize_trusts(nodes, sum_trusts)
+        normalize_trusts(subset_nodes, sum(n.trust for n in full_nodes))
         
     return nodes
         
@@ -419,34 +464,47 @@ def plot_node_rankings(params, sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted
 
 if __name__ == '__main__':
     
-    n_steps = 500
+    n_steps = 20
     n_nodes = 20
     n_edges = 60
-    n_users = n_nodes * 3
+    n_users = n_nodes
     n_known_nodes = 5
+    n_search_queries = 10
+    
+    n_search_queries_id = 0
+    root_set_size_id = 1
+    trust_included_id = 2
+    trust_normalized_id = 3
+    edge_trust_id = 4
+    edge_trust_auth_id = 5
+    user_engaged_id = 6
+    auth_id = 7
+    hub_id = 8
+    trust_id = 9
+    name_id = 10
+    
+    
+    
+    #params corresponding to the above definitions
+    std_HITS_param = [1, n_nodes, False, False, False, False, False, 1, 1, 1, "standard hits"]
+    std_HITS_rndHubAuth_param = [1, n_nodes, False, False, False, False, False, -1, -1, 1, "standard hits, rnd hub auth vals"]
+    trust_HITS_normalized = [1, n_nodes, True, True, False, False, False, 1, 1, 1, "trust hits normalized"]
+    rnd_trust_HITS_normalized = [1, n_nodes, True, True, False, False, False, 1, 1, -1, "rnd trust hits normalized"]
+    rndTrust_rndHits_normalized = [1, n_nodes, True, True, False, False, False, -1, -1, -1, "rnd trust rnd hits normalized"]
+    trust_HITS_avg = [1, n_nodes, True, False, False, False, False, 1, 1, 1, "trust hits avg"]
+    rnd_trust_HITS_avg = [1, n_nodes, True, False, False, False, False, 1, 1, -1, "rnd trust hits avg"]
+    edge_trust_HITS = [1, n_nodes, True, False, True, False, False, 1, 1, -1, "edge trust"]
+    edge_trust_auth_HITS = [1, n_nodes, True, False, True, True, False, 1, 1, -1, "edge trust auth"]
+    subset_edge_trust_auth = [n_search_queries, int(n_nodes/3), True, False, True, True, False, 1, 1, -1, "subset edge trust auth"]
+    edge_trust_auth_user_engaged_HITS = [n_search_queries, n_nodes, True, False, True, True, True, 1, 1, -1, "edge trust auth user engaged hits"]
+    std_HITS_user_engaged = [n_search_queries, n_nodes, False, False, False, False, True, 1, 1, 1, "standard hits user engaged"]
+    
+    
     #base_nodes = Graph.create_random_weighted_directed_document_nodes(n_nodes, n_edges)
     base_nodes = Graph.load_graph("rnd_20n_60e")
     Graph.visualize(base_nodes)
     print_parents_children(base_nodes)
     #Graph.save_graph(base_nodes, "rnd_20n_60e")
-    
-    
-    trust_included_id = 0
-    trust_normalized_id = 1
-    edge_trust_id = 2
-    auth_id = 3
-    hub_id = 4
-    trust_id = 5
-    name_id = 6
-    
-    std_HITS_param = [False, False, False, 1, 1, 1, "standard hits"]
-    std_HITS_rndHubAuth_param = [False, False, False, -1, -1, 1, "standard hits, rnd hub auth vals"]
-    trust_HITS_normalized = [True, True, False, 1, 1, 1, "trust hits normalized"]
-    rnd_trust_HITS_normalized = [True, True, False, 1, 1, -1, "rnd trust hits normalized"]
-    rndTrust_rndHits_normalized = [True, True, False, -1, -1, -1, "rnd trust rnd hits normalized"]
-    trust_HITS_avg = [True, False, False, 1, 1, 1, "trust hits avg"]
-    rnd_trust_HITS_avg = [True, False, False, 1, 1, -1, "rnd trust hits avg"]
-    edge_trust_HITS = [True, False, True, 1, 1, -1, "edge trust"]
     
     params = set_params(std_HITS_param,
                         std_HITS_rndHubAuth_param, 
@@ -455,9 +513,13 @@ if __name__ == '__main__':
                         rndTrust_rndHits_normalized,  
                         trust_HITS_avg,
                         rnd_trust_HITS_avg,
-                        edge_trust_HITS)
+                        edge_trust_HITS,
+                        edge_trust_auth_HITS,
+                        subset_edge_trust_auth,
+                        edge_trust_auth_user_engaged_HITS,
+                        std_HITS_user_engaged)
     
-    params = [params[0], params[-1]]
+    params = [params[0], params[-3], params[-2], params[-1]]
     
     node_copies = [copy.deepcopy(base_nodes) for nodes in range(len(params))]
     
@@ -472,19 +534,45 @@ if __name__ == '__main__':
         
         print("\n\n", param[name_id], "\n")
         #print_parents_children(nodes)
+        HITS_init(nodes, param[edge_trust_id], param[auth_id], param[hub_id], param[trust_id])
         HITS_iteration(nodes,
+                       param[n_search_queries_id],
+                       param[root_set_size_id],
                        n_steps, 
                        param[trust_included_id],
                        param[trust_normalized_id],
                        param[edge_trust_id],
+                       param[edge_trust_auth_id],
+                       False,
                        param[auth_id],
                        param[hub_id],
                        param[trust_id])
         #print_parents_children(nodes)
+        
+        if param[user_engaged_id]:
+            
+            Graph.add_users(nodes, n_nodes)
+            print_parents_children(nodes)
+            #Graph.set_all_users_rnd_known_nodes(nodes, n_known_nodes)
+            #print_known_nodes(nodes)
+            
+            HITS_iteration(nodes,
+                           param[n_search_queries_id],
+                           param[root_set_size_id],
+                           n_steps, 
+                           param[trust_included_id],
+                           param[trust_normalized_id],
+                           param[edge_trust_id],
+                           param[edge_trust_auth_id],
+                           param[user_engaged_id],
+                           param[auth_id],
+                           param[hub_id],
+                           param[trust_id])
+            
+            
+        
+        
         all_nodes.append(nodes)
-        
-        
-        
         sorted_nodes_auth, sorted_nodes_hub, sorted_nodes_trust = get_sorted_nodes(nodes)
         sorted_nodes_auths.append(sorted_nodes_auth)
         sorted_nodes_hubs.append(sorted_nodes_hub)
