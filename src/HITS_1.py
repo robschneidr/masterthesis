@@ -5,13 +5,11 @@ Created on Fri Feb 24 17:06:25 2023
 @author: rob
 """
 
-import Graph
+import Graph_1 as G
 import random
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
-
-np.set_printoptions(precision=3, suppress=True)
 
 
 
@@ -115,9 +113,7 @@ notes:
     observation: hub and authority values seem to be different for each run, when nodes are randomly selected
     for the root set. is this a good property of hits? (probably not..)
     
-    TODO: user inclusion
-    
-        -> user inclusion problem: what is the max index in the get_root_set function?
+
         
     TODO: solve normalization problem: due to the smaller (root) subsets, the normalization
         values will get smaller and disturb the overall hits ranking. imagine for example
@@ -128,10 +124,14 @@ notes:
         
         ==> solved (probably) by summing the auth, hub, trust values over all the nodes of the
         network instead of only summing over subset every time.
-        the small ranking discrepancies btn std hits and std hits user engagement very likely
-        come from the fact that a, h, t values of the user nodes are also taken into account.
         
-    last item worked on: hits 215 max index
+    
+    
+    25.03.
+    
+    to better adapt, this HITS file will not include the second and third step of the 
+    work and concentrates solely on the trust inclusion mechanisms
+    
     
     
     
@@ -141,6 +141,7 @@ notes:
 
 
 def HITS_init(nodes, edge_trust=False, auth=-1, hub=-1, trust=-1):
+    
         
     if auth >= 0:
         auths = [auth for i in range(len(nodes))]
@@ -212,7 +213,6 @@ def normalize_trusts(nodes, sum_trusts):
         
 def get_root_set(nodes, size, IDs=None):
     max_index = len(nodes) - 1
-    #max_index = 19
     id_set = set()
     if IDs is None:
         while len(id_set) < size:
@@ -224,7 +224,7 @@ def get_root_set(nodes, size, IDs=None):
     
     
 def HITS_iteration(nodes, n_search_queries, root_set_size, n_steps,
-                   trust_included=False, trust_normalized=False, edge_trust=False, edge_trust_auth=False, users_engaged=False, 
+                   trust_included=False, trust_normalized=False, edge_trust=False, edge_trust_auth=False, 
                    auth=-1, hub=-1, trust=-1):
     
     
@@ -252,22 +252,13 @@ def HITS_iteration(nodes, n_search_queries, root_set_size, n_steps,
         
         
 
-def HITS_one_step(full_nodes, subset_nodes, trust_included, trust_normalized, edge_trust, edge_trust_auth, users_engaged=False):
+def HITS_one_step(all_nodes, subset_nodes, trust_included, trust_normalized, edge_trust, edge_trust_auth):
     sum_auths = 0.
     sum_hubs = 0.
     sum_trusts = 0.
     #nodes old is required so the algorithm does not take the already updated
     #values in the for loop.
-    nodes_old = copy.deepcopy(full_nodes)
-    
-    if users_engaged:
-        
-        users = Graph.get_nodes_from_IDs(nodes, Graph.get_user_IDs(nodes))
-        
-        for user in users:
-            
-            avg_trust = Graph.get_avg_trust_of_known_nodes(user)
-            rnd_document_node = Graph.get_rnd_document_node(nodes)
+    nodes_old = copy.deepcopy(all_nodes)
             
    
     for node in subset_nodes:
@@ -309,14 +300,15 @@ def HITS_one_step(full_nodes, subset_nodes, trust_included, trust_normalized, ed
             
             if len(parents) > 0 or len(children) > 0:
                 node.trust = (sum_parents + sum_children) / (len(parents) + len(children))
-    
-    normalize_auths(subset_nodes, sum(n.auth for n in full_nodes))
-    normalize_hubs(subset_nodes, sum(n.hub for n in full_nodes))
+
+    normalize_auths(subset_nodes, sum(n.auth for n in all_nodes))
+    normalize_hubs(subset_nodes, sum(n.hub for n in all_nodes))
     
     if trust_normalized:
-        normalize_trusts(subset_nodes, sum(n.trust for n in full_nodes))
+        normalize_trusts(subset_nodes, sum(n.trust for n in all_nodes))
         
     return nodes
+
         
 
 def mean_nodes_order_similarity(nodeIDs_A, nodeIDs_B):
@@ -420,15 +412,7 @@ def print_parents_children(nodes):
         print("node ", n._id, "parents: ", [p._id for p in n.parents], ", children: ", [c._id for c in n.children], "edges: ", [(e, v) for e, v in n.edges.items()])   
         
     print()
-    
-def print_known_nodes(nodes):
-    for n in nodes:
-        if n.isUser():
-            print("node ", n._id, "known nodes: ", [kn._id for kn in n.known_nodes], "avg trust: ", Graph.get_avg_trust_of_known_nodes(n))
-    print()
 
-def plot_node_values():
-    pass
 
 def plot_node_rankings(params, sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted_nodeIDs_trusts):
     x = np.arange(0, len(sorted_nodeIDs_auths[0]))   
@@ -464,7 +448,7 @@ def plot_node_rankings(params, sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted
 
 if __name__ == '__main__':
     
-    n_steps = 20
+    n_steps = 5
     n_nodes = 20
     n_edges = 60
     n_users = n_nodes
@@ -477,34 +461,32 @@ if __name__ == '__main__':
     trust_normalized_id = 3
     edge_trust_id = 4
     edge_trust_auth_id = 5
-    user_engaged_id = 6
-    auth_id = 7
-    hub_id = 8
-    trust_id = 9
-    name_id = 10
+    auth_id = 6
+    hub_id = 7
+    trust_id = 8
+    name_id = 9
     
     
     
     #params corresponding to the above definitions
-    std_HITS_param = [1, n_nodes, False, False, False, False, False, 1, 1, 1, "standard hits"]
-    std_HITS_rndHubAuth_param = [1, n_nodes, False, False, False, False, False, -1, -1, 1, "standard hits, rnd hub auth vals"]
-    trust_HITS_normalized = [1, n_nodes, True, True, False, False, False, 1, 1, 1, "trust hits normalized"]
-    rnd_trust_HITS_normalized = [1, n_nodes, True, True, False, False, False, 1, 1, -1, "rnd trust hits normalized"]
-    rndTrust_rndHits_normalized = [1, n_nodes, True, True, False, False, False, -1, -1, -1, "rnd trust rnd hits normalized"]
-    trust_HITS_avg = [1, n_nodes, True, False, False, False, False, 1, 1, 1, "trust hits avg"]
-    rnd_trust_HITS_avg = [1, n_nodes, True, False, False, False, False, 1, 1, -1, "rnd trust hits avg"]
-    edge_trust_HITS = [1, n_nodes, True, False, True, False, False, 1, 1, -1, "edge trust"]
-    edge_trust_auth_HITS = [1, n_nodes, True, False, True, True, False, 1, 1, -1, "edge trust auth"]
-    subset_edge_trust_auth = [n_search_queries, int(n_nodes/3), True, False, True, True, False, 1, 1, -1, "subset edge trust auth"]
-    edge_trust_auth_user_engaged_HITS = [n_search_queries, n_nodes, True, False, True, True, True, 1, 1, -1, "edge trust auth user engaged hits"]
-    std_HITS_user_engaged = [n_search_queries, n_nodes, False, False, False, False, True, 1, 1, 1, "standard hits user engaged"]
+    std_HITS_param = [1, n_nodes, False, False, False, False, 1, 1, 1, "standard hits"]
+    std_HITS_rndHubAuth_param = [1, n_nodes, False, False, False, False, -1, -1, 1, "standard hits, rnd hub auth vals"]
+    trust_HITS_normalized = [1, n_nodes, True, True, False, False, 1, 1, 1, "trust hits normalized"]
+    rnd_trust_HITS_normalized = [1, n_nodes, True, True, False, False, 1, 1, -1, "rnd trust hits normalized"]
+    rndTrust_rndHits_normalized = [1, n_nodes, True, True, False, False, -1, -1, -1, "rnd trust rnd hits normalized"]
+    trust_HITS_avg = [1, n_nodes, True, False, False, False, 1, 1, 1, "trust hits avg"]
+    rnd_trust_HITS_avg = [1, n_nodes, True, False, False, False, 1, 1, -1, "rnd trust hits avg"]
+    edge_trust_HITS = [1, n_nodes, True, False, True, False, 1, 1, -1, "edge trust"]
+    edge_trust_auth_HITS = [1, n_nodes, True, False, True, True, 1, 1, -1, "edge trust auth"]
+    subset_edge_trust_auth = [n_search_queries, int(n_nodes/3), True, False, True, True, 1, 1, -1, "subset edge trust auth"]
+
     
     
-    #base_nodes = Graph.create_random_weighted_directed_document_nodes(n_nodes, n_edges)
-    base_nodes = Graph.load_graph("rnd_20n_60e")
-    Graph.visualize(base_nodes)
+    #base_nodes = G.create_random_weighted_directed_document_nodes(n_nodes, n_edges)
+    base_nodes = G.load_graph("rnd_20n_60e_1")
+    G.visualize(base_nodes)
     print_parents_children(base_nodes)
-    #Graph.save_graph(base_nodes, "rnd_20n_60e")
+    #G.save_graph(base_nodes, "rnd_20n_60e_1")
     
     params = set_params(std_HITS_param,
                         std_HITS_rndHubAuth_param, 
@@ -515,11 +497,9 @@ if __name__ == '__main__':
                         rnd_trust_HITS_avg,
                         edge_trust_HITS,
                         edge_trust_auth_HITS,
-                        subset_edge_trust_auth,
-                        edge_trust_auth_user_engaged_HITS,
-                        std_HITS_user_engaged)
+                        subset_edge_trust_auth)
     
-    params = [params[0], params[-3], params[-2], params[-1]]
+    #params = [params[0], params[-1]]
     
     node_copies = [copy.deepcopy(base_nodes) for nodes in range(len(params))]
     
@@ -543,33 +523,10 @@ if __name__ == '__main__':
                        param[trust_normalized_id],
                        param[edge_trust_id],
                        param[edge_trust_auth_id],
-                       False,
                        param[auth_id],
                        param[hub_id],
                        param[trust_id])
-        #print_parents_children(nodes)
-        
-        if param[user_engaged_id]:
-            
-            Graph.add_users(nodes, n_nodes)
-            print_parents_children(nodes)
-            #Graph.set_all_users_rnd_known_nodes(nodes, n_known_nodes)
-            #print_known_nodes(nodes)
-            
-            HITS_iteration(nodes,
-                           param[n_search_queries_id],
-                           param[root_set_size_id],
-                           n_steps, 
-                           param[trust_included_id],
-                           param[trust_normalized_id],
-                           param[edge_trust_id],
-                           param[edge_trust_auth_id],
-                           param[user_engaged_id],
-                           param[auth_id],
-                           param[hub_id],
-                           param[trust_id])
-            
-            
+                     
         
         
         all_nodes.append(nodes)
@@ -585,24 +542,6 @@ if __name__ == '__main__':
     
     
     sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted_nodeIDs_trusts = get_sorted_nodeIDs(params, sorted_nodes_auths, sorted_nodes_hubs, sorted_nodes_trusts)    
-    
-    
-    
-    #print_parents_children(nodes)
-    
-    '''Graph.add_users(nodes, 20)
-    print_parents_children(nodes)
-    Graph.set_all_users_rnd_known_nodes(nodes, n_known_nodes)
-    print_known_nodes(nodes)'''
-    
-
-        
-        
-        
-    
-    
-    
-    
     
     
     #plot_node_rankings(params, sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted_nodeIDs_trusts)        
