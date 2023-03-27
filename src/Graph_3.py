@@ -10,6 +10,9 @@ import networkx as nx
 import pickle
 import numpy as np
 import HITS_3 as HITS
+import copy
+
+
 
 
 class User:
@@ -78,14 +81,13 @@ class Node:
 
 
 def set_content_and_private_factors(node, content_max):
-    node.content = random.randint(2, content_max)
+    node.content = random.randint(HITS.RANDINT_PRIMES_FLOOR, content_max)
     node.private_factors = HITS.prime_factors_to_dict(HITS.prime_factors(node.content))
     
-def set_public_factors(node, false_factor_degree):  
-    node.public_factors = node.private_factors
-    false_content = int(node.content ** false_factor_degree)
-    print("f", false_content)
-    node.public_factors = HITS.prime_factors_to_dict(HITS.prime_factors(false_content), node.public_factors)
+def set_public_factors(node):  
+    node.public_factors = copy.deepcopy(node.private_factors)
+    #false_content = int(node.content ** false_factor_degree)
+    #node.public_factors = HITS.prime_factors_to_dict(HITS.prime_factors(false_content), node.public_factors)
 
     
     

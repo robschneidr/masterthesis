@@ -11,6 +11,7 @@ import random
 import Graph_3 as G
 import HITS_3 as H
 import matplotlib.pyplot as plt
+import math
 
 def mean_nodes_order_similarity(nodeIDs_A, nodeIDs_B):
     
@@ -35,41 +36,34 @@ def mean_nodes_order_similarity(nodeIDs_A, nodeIDs_B):
      return sum_differences
 
 
-
-def dothis():
-    return 0
-
-def dothat():
-    return 1
-
-def setA(ana, func):
-    ana.func()
-
-class A:
+def test_get_private_ranking():
+    search_factors = [2, 2, 5]
+    n_nodes = 30
+    nodes = []
     
-    def __init__(self):
-        self.c = 2
+    for i in range(n_nodes):
+        nodes.append(G.Node(i))
+        G.set_content_and_private_factors(nodes[i], 1000000)
+        print(i, ": ", nodes[i].private_factors)
+    
+    
+    
+    print(H.get_private_ranking(nodes, H.prime_factors_to_dict(search_factors)))
         
-    def do1(self):
-        self.c = 5
         
+
         
 
 
 
 
 if __name__ == "__main__":
+    #test_get_private_ranking()
     
-
-    node = G.Node(5)
+    print(random.expovariate(1 / math.log(1000)))
     
-    G.set_content_and_private_factors(node, 10000)
-    print(node.content)
-    print(node.private_factors)
     
-    G.set_public_factors(node, 1.2)
     
-    print(node.public_factors)
     
     
     
