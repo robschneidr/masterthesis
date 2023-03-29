@@ -68,6 +68,7 @@ class Node:
        self.content = 0
        self.private_factors = dict()
        self.public_factors = dict()
+       self.false_factor_probability = 0.
 
        
     def __hash__(self):
@@ -88,6 +89,11 @@ def set_public_factors(node):
     node.public_factors = copy.deepcopy(node.private_factors)
     #false_content = int(node.content ** false_factor_degree)
     #node.public_factors = HITS.prime_factors_to_dict(HITS.prime_factors(false_content), node.public_factors)
+    
+def set_all_edge_weights(nodes, weight):
+    for n in nodes:
+        for child in n.edges.keys():
+            n.edges.update({child : weight})
 
     
     
@@ -119,6 +125,9 @@ def get_edges(nodes):
             
 def get_nodes_from_IDs(nodes, IDs):
     return [nodes[_id] for _id in IDs]
+
+def get_node_IDs(nodes):
+    return set([n._id for n in nodes])
 
 
 def create_users(n_users):
