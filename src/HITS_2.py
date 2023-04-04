@@ -306,7 +306,7 @@ if __name__ == '__main__':
                         user_hits_trust,
                         user_hits)
     
-    params = [params[-1]]
+    #params = [params[-1]]
     
     
     #params = [params[0], params[-1]]

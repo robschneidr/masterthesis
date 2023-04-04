@@ -448,7 +448,7 @@ def plot_node_rankings(params, sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted
 
 if __name__ == '__main__':
     
-    n_steps = 5
+    n_steps = 20
     n_nodes = 20
     n_edges = 60
     n_users = n_nodes
@@ -544,7 +544,7 @@ if __name__ == '__main__':
     sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted_nodeIDs_trusts = get_sorted_nodeIDs(params, sorted_nodes_auths, sorted_nodes_hubs, sorted_nodes_trusts)    
     
     
-    #plot_node_rankings(params, sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted_nodeIDs_trusts)        
+    plot_node_rankings(params, sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted_nodeIDs_trusts)        
     #diff = mean_nodes_order_similarity([node._id for node in sorted_nodes_auths[0]], [node._id for node in sorted_nodes_auths[1]])
     #print(diff)    
         

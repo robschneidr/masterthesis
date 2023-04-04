@@ -4,7 +4,7 @@ save_data_on_exit = True
 save_history = True
 save_non_project_files = False
 project_type = 'empty-project-type'
-recent_files = ['src\\HITS_3.py', 'src\\Graph_3.py', 'src\\utils.py']
+recent_files = ['src\\utils.py', 'src\\HITS_3.py', 'src\\Graph_3.py']
 
 [main]
 version = 0.2.0
