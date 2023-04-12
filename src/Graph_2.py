@@ -139,6 +139,17 @@ def convert_nodes_to_networkx(nodes):
     nxGraph.add_weighted_edges_from(nx_edges)
     return nxGraph
 
+def add_users_to_nxGraph(nodes, users):
+    nxGraph = convert_nodes_to_networkx(nodes)
+    min_idx = len(nodes)
+    nx_edges = []
+    for u in users:
+        for child in u.children:           
+            nx_edges.append((min_idx + u._id, child._id, 0.))
+    nxGraph.add_weighted_edges_from(nx_edges)
+    print(nxGraph.number_of_edges(), nxGraph.number_of_nodes())
+    return nxGraph
+
 def visualize(nodes):
     nxGraph = convert_nodes_to_networkx(nodes)
     nx.draw_networkx(nxGraph, with_labels=True)

@@ -9,6 +9,7 @@ import random
 import networkx as nx
 import pickle
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 
@@ -161,8 +162,11 @@ def convert_nodes_to_networkx(nodes):
     return nxGraph
 
 def visualize(nodes):
+    plt.rcParams['figure.dpi'] = 600
     nxGraph = convert_nodes_to_networkx(nodes)
-    nx.draw_networkx(nxGraph, with_labels=True)
+    nx.draw_networkx(nxGraph, pos=nx.spring_layout(nxGraph), with_labels=True)
+    plt.title("Webgraph with " + str(nxGraph.number_of_nodes()) + " Nodes and " + str(nxGraph.number_of_edges()) + " Edges")
+    
     
 def save_graph(graph, filename):
     with open("../data/graphs/" + filename + ".pkl", "wb") as f:

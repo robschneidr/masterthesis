@@ -87,6 +87,7 @@ notes:
     as good as random when compared to the true ranking.
     TODO: hub and auth values probably have to be reset after every search query
     TODO: check for part1 and part2 if subset edge trust should really deliver different results than edge trust
+    TODO: eliminate arbitrary learning rate. forgot the concept....
         
 
 '''
@@ -505,10 +506,10 @@ def HITS_one_step(all_nodes, subset_nodes, enable_trust):
 if __name__ == '__main__':
     
     n_steps = 20
-    n_nodes = 100
-    n_edges = 600
+    n_nodes = 20
+    n_edges = 80
     n_users = n_nodes
-    n_search_queries = 1000
+    n_search_queries = 300
     root_set_size = 5
     std_learning_rate = 0.1
     edge_init = 1.0

@@ -60,12 +60,9 @@ def test_get_private_ranking():
 if __name__ == "__main__":
     #test_get_private_ranking()
     
-    a = 0.3
-    b = H.false_factor_probability_function(a)
-    print(b)
-    
-    c = H.inverse_false_factor_probability_function(b)
-    print(c)
+
+
+     
     
     
     

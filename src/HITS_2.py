@@ -10,6 +10,7 @@ import random
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
+import visualization as v
 
 np.set_printoptions(precision=3, suppress=True)
 
@@ -77,17 +78,6 @@ def HITS_init(nodes, auth=-1, hub=-1):
     normalize_auths(nodes, len(nodes))
     normalize_hubs(nodes, len(nodes))
     
-    #edge values are already set at graph creation
-    #set_edge_trusts(nodes)
-    
-  
-
-def set_edge_trusts(nodes, val=-1):
-    for n in nodes:
-        for child, weight in n.edges.items():
-            n.edges.update({child : random.random()})
-
-            
            
 
 def set_all_auths(nodes, auths):
@@ -126,9 +116,12 @@ def HITS_iteration(nodes, n_search_queries, root_set_size, n_steps,
                    enable_trust=False, users=None, 
                    auth=-1, hub=-1, trust=-1):
     
-    avg_trust = G.get_avg_trust(nodes)
-    print("avg trust", avg_trust)
-    print_hubAuthTrust_values(nodes)
+    avg_trusts = []
+    user_trusts = []
+    #avg_trust = G.get_avg_trust(nodes)
+    
+    #print("avg trust", avg_trust)
+    #print_hubAuthTrust_values(nodes)
     #print_parents_children(nodes)
     
     
@@ -138,6 +131,16 @@ def HITS_iteration(nodes, n_search_queries, root_set_size, n_steps,
         root_set = get_root_set(nodes, root_set_size, root_set_IDs)
         #print([n._id for n in root_set])
         #print_hubAuthTrust_values(nodes)
+        
+        if users is not None:
+            selected_user = G.select_rnd_user(users)
+            selected_user.adjust_children(root_set)
+            avg_trusts.append(G.get_avg_trust(nodes))
+            user_trusts.append(G.get_users_avg_trust(users))
+
+            print("user ", selected_user._id, "children: ", [c._id for c in selected_user.children])
+            print("user avg trust", G.get_users_avg_trust(users))
+            print()
     
         for _ in range(n_steps):
             HITS_one_step(nodes, root_set, enable_trust, users)
@@ -146,7 +149,7 @@ def HITS_iteration(nodes, n_search_queries, root_set_size, n_steps,
     print_hubAuthTrust_values(nodes)
     #print_parents_children(nodes)
     
-    return nodes
+    return nodes, avg_trusts, user_trusts
         
         
         
@@ -158,12 +161,8 @@ def HITS_one_step(all_nodes, subset_nodes, enable_trust, users):
     #values in the for loop.
     nodes_old = copy.deepcopy(all_nodes)
     
+
     
-    
-    
-    if users is not None:
-        selected_user = G.select_rnd_user(users)
-        selected_user.adjust_children(subset_nodes)
             
    
     for node in subset_nodes:
@@ -182,10 +181,7 @@ def HITS_one_step(all_nodes, subset_nodes, enable_trust, users):
     normalize_auths(subset_nodes, sum(n.auth for n in all_nodes))
     normalize_hubs(subset_nodes, sum(n.hub for n in all_nodes))
     
-    if users is not None:
-        print("user ", selected_user._id, "children: ", [c._id for c in selected_user.children])
-        print("user avg trust", G.get_users_avg_trust(users))
-        print()
+    
     
     return nodes
 
@@ -239,7 +235,12 @@ def get_sorted_nodeIDs(params, sorted_nodes_auths, sorted_nodes_hubs):
 
 
 
-    
+def get_user_connection_count(nodes, users):
+    counts = [0 for _ in range(len(nodes))]
+    for u in users:
+        for c in u.children:
+            counts[c._id] += 1
+    return counts
     
 
 
@@ -269,12 +270,12 @@ def print_parents_children(nodes):
 
 if __name__ == '__main__':
     
-    n_steps = 5
+    n_steps = 20
     n_nodes = 20
-    n_edges = 60
+    n_edges = 80
     n_users = n_nodes
-    n_search_queries = 20
-    root_set_size = 5
+    n_search_queries = 100
+    root_set_size = 6
     
     n_search_queries_id = 0
     root_set_size_id = 1
@@ -294,11 +295,11 @@ if __name__ == '__main__':
     
     
     
-    base_nodes = G.create_random_weighted_directed_document_nodes(n_nodes, n_edges)
-    #base_nodes = G.load_graph("rnd_20n_60e_1")
-    G.visualize(base_nodes)
+    #base_nodes = G.create_random_weighted_directed_document_nodes(n_nodes, n_edges)
+    base_nodes = G.load_graph("rnd_20n_60e_1")
+    #G.visualize(base_nodes)
     print_parents_children(base_nodes)
-    G.save_graph(base_nodes, "rnd_20n_60e_2")
+    #G.save_graph(base_nodes, "rnd_20n_60e_2")
     
     params = set_params(std_hits,
                         std_subset_hits,
@@ -306,10 +307,10 @@ if __name__ == '__main__':
                         user_hits_trust,
                         user_hits)
     
-    #params = [params[-1]]
+    #params = [params[3]]
     
     
-    #params = [params[0], params[-1]]
+    params = [params[-2]]
     
     node_copies = [copy.deepcopy(base_nodes) for nodes in range(len(params))]
     
@@ -332,12 +333,12 @@ if __name__ == '__main__':
         
         if param[users_engaged_id]:
             users = G.create_users(n_users)
-            HITS_iteration(nodes,
-                           param[n_search_queries_id],
-                           param[root_set_size_id],
-                           n_steps, 
-                           param[enable_trust_id],
-                           users)
+            _, avg_trusts, user_trusts = HITS_iteration(nodes,
+                                         param[n_search_queries_id],
+                                         param[root_set_size_id],
+                                         n_steps, 
+                                         param[enable_trust_id],
+                                         users)
         
         
         #print_parents_children(nodes)
@@ -345,7 +346,11 @@ if __name__ == '__main__':
         sorted_nodes_auth, sorted_nodes_hub = get_sorted_nodes(nodes)
         sorted_nodes_auths.append(sorted_nodes_auth)
         sorted_nodes_hubs.append(sorted_nodes_hub)
-
+        #v.plot_avg_vs_user_trusts(user_trusts)
+        v.draw_network_with_users(nodes, users)
+        #print(get_user_connection_count(nodes, users))
+        #v.heatmap_node_user_adjacency_matrix(nodes, users)
+        #v.heatmap_adjacency_matrix(nodes)
     
     sorted_nodeIDs_auths, sorted_nodeIDs_hubs = get_sorted_nodeIDs(params, sorted_nodes_auths, sorted_nodes_hubs)    
      
