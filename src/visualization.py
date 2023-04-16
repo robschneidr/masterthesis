@@ -15,13 +15,159 @@ import random
 import copy
 import math
 
-        
-        
+def plot_false_factors_and_wtc(n_false_factors, wtcs):
+    plt.rcParams['figure.dpi'] = 600
+    sns.regplot(x=wtcs[20:], y=n_false_factors[20:])
+    plt.xlabel("Willingness to Compute")
+    plt.ylabel("Number of False Factors")
+    plt.title("Number of False Factors as a Function of Willingness to Compute")
+    plt.show()
 
-def visualize_factordict(factordict):
+
+def plot_order_similarities(rnd, private, public):
+    plt.rcParams['figure.dpi'] = 600
+    size = len(rnd)
+    
+    avg_rnd = []
+    avg_private = []
+    avg_public = []
+    
+    step_size = 50
+    for i in range(0, size - step_size - 1, step_size):
+        avg_rnd.append(np.mean(rnd[i:i + step_size]))
+        avg_private.append(np.mean(private[i:i + step_size]))
+        avg_public.append(np.mean(public[i:i + step_size]))
+
+        
+        
+    x = np.arange(len(avg_rnd))
+        
+    
+
+    # Plot the data and linear regression lines
+    sns.regplot(x=x, y=avg_rnd, scatter=True, label="HITS - Random Ranking")
+    sns.regplot(x=x, y=avg_private, scatter=True, label="HITS - Private Factor Ranking ")
+    sns.regplot(x=x, y=avg_public, scatter=True, label=" HITS - Public Ranking")
+    
+    plt.xlabel("Iterations")
+    plt.ylabel("Normalized Ranking Difference")
+    plt.title("Difference between HITS and Semantic Rankings")
+    plt.legend()
+    # Show the plot
+    plt.show()
+    
+
+
+def plot_avg_trusts(avg_trusts):
+    plt.rcParams['figure.dpi'] = 600
+    sns.lineplot(x=np.arange(len(avg_trusts)), y=avg_trusts)
+    plt.xlabel("Iterations")
+    plt.ylabel("Average Trustworthiness")
+    plt.title("Average Trustworthiness of All Network Connections")
+    
+    plt.show()
+
+def plot_ranking(_query_factors, _ranked_nodes, title):
+    plt.rcParams['figure.dpi'] = 600
+    query_factors, query_ID = arrange_factordict_data(_query_factors)
+    ranked_nodes = [arrange_factordict_data(n.private_factors) for n in _ranked_nodes[:9]]
+    print("len ranked", len(ranked_nodes))
+        
+    
+    # Create the figure and subplots
+    fig, axs = plt.subplots(nrows=4, ncols=3, figsize=(12, 10))
+    
+    # Remove the plot frames and ticks for all subplots
+    for ax in axs.flat:
+        ax.set_frame_on(False)
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+    # Plot the first row
+    sns.heatmap(query_factors, ax=axs[0, 1], vmin=0.0, vmax=1/math.log(2), cbar_kws={'label': 'Inverse Factor Size'})
+    axs[0, 1].set_title('Query Factors: ' + str(_query_factors))
+
+    # Plot the other rows
+    for i in range(1, 4):
+        for j in range(3):
+            sns.heatmap(ranked_nodes[3*(i-1)+j][0], ax=axs[i, j], vmin=0.0, vmax=1/math.log(2))
+            axs[i, j].set_title('Factors: ' + str(_ranked_nodes[3*(i-1)+j].private_factors))
+            axs[i, j].set_xticks([])
+            axs[i, j].set_yticks([])
+            axs[i, j].set_frame_on(False)
+
+    # Add a title and tight layout
+    fig.suptitle(title, fontsize=16)
+    fig.tight_layout()
+
+    # Show the plot
+    plt.show()
+    
+
+
+def plot_query_and_root_set(_query_factors, _root_set, title, anti_root_set, mode):
+    
+    plt.rcParams['figure.dpi'] = 600
+    
+    query_factors, query_ID = arrange_factordict_data(_query_factors)
+    
+    print("mode: ", mode)
+    
+    
+    if mode == 1:
+        root_set = [arrange_factordict_data(n.public_factors) for n in _root_set[:9]]
+    elif mode == 2:
+        root_set = [arrange_factordict_data(n.private_factors) for n in _root_set[:9]]
+    elif mode == 3:
+        root_set = [arrange_factordict_data(n.public_factors) for n in anti_root_set[:9]]
+    elif mode == 4:
+        root_set = [arrange_factordict_data(n.private_factors) for n in anti_root_set[:9]]
+        
+    
+
+    # Create the figure and subplots
+    fig, axs = plt.subplots(nrows=4, ncols=3, figsize=(12, 10))
+
+    # Remove the plot frames and ticks for all subplots
+    for ax in axs.flat:
+        ax.set_frame_on(False)
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+    # Plot the first row
+    sns.heatmap(query_factors, ax=axs[0, 1], vmin=0.0, vmax=1/math.log(2), cbar_kws={'label': 'Inverse Factor Size'})
+    axs[0, 1].set_title('Query Factors: ' + str(_query_factors))
+
+    # Plot the other rows
+    for i in range(1, 4):
+        for j in range(3):
+            sns.heatmap(root_set[3*(i-1)+j][0], ax=axs[i, j], vmin=0.0, vmax=1/math.log(2))
+            if mode == 1:
+                axs[i, j].set_title('Factors: ' + str(_root_set[3*(i-1)+j].public_factors))
+            elif mode == 2:
+                axs[i, j].set_title('Factors: ' + str(_root_set[3*(i-1)+j].private_factors))
+            elif mode == 3:
+                axs[i, j].set_title('Factors: ' + str(anti_root_set[3*(i-1)+j].public_factors))
+            elif mode == 4:
+                axs[i, j].set_title('Factors: ' + str(anti_root_set[3*(i-1)+j].private_factors))
+            axs[i, j].set_xticks([])
+            axs[i, j].set_yticks([])
+
+    # Add a title and tight layout
+    fig.suptitle(title, fontsize=16)
+    fig.tight_layout()
+
+    # Show the plot
+    plt.show()
+
+
+
+def arrange_factordict_data(factordict):
+    print("ara", factordict)
     content = 1
     for factor, amount in factordict.items():
         content *= (factor ** amount)
+        #content *= factor
     ID = content
     shape = (round(content ** 0.5), round(content ** 0.5))
     content = shape[0] * shape[1]
@@ -34,7 +180,7 @@ def visualize_factordict(factordict):
     _1d = []
     while available_space > 0:
         rnd_float = 1 / random.random()
-        #find the minimum distance and its index. thanks chatgpt
+        #find the minimum distance. thanks chatgpt
         closest = min(sorted_factors, key=lambda x: abs(x - rnd_float))
         for j in range(closest):
             _1d.append(1 / math.log(closest))
@@ -45,19 +191,24 @@ def visualize_factordict(factordict):
     arr_2d = arr_1d.reshape(shape)
     
     # Reverse every other row.
-    '''for i in range(1, shape[0], 2):
-        arr_2d[i] = arr_2d[i, ::-1]'''
+    for i in range(1, shape[0], 2):
+        arr_2d[i] = arr_2d[i, ::-1]    
+        
+    return arr_2d, ID
+
+def visualize_factordict(factordict):
+    
             
     
     plt.rcParams['figure.dpi'] = 600
-    
-    ax = sns.heatmap(arr_2d, vmin=0.0, vmax=1/math.log(2), cbar_kws={'label': '1 / ln(factor)'})
+    arr_2d, ID = arrange_factordict_data(factordict)
+    ax = sns.heatmap(arr_2d, vmin=0.0, vmax=1/math.log(2), cbar_kws={'label': 'Inverse Factor Size'})
     
     ax.set_xticks([])
     ax.set_yticks([])
 
     # add labels and title to the plot
-    plt.title('Object: ' + str(ID) + ', Factors: ' + str(factordict))
+    plt.title('ID: ' + str(ID) + ', Factors: ' + str(factordict))
     
     # display the plot
     plt.show() 
@@ -65,13 +216,6 @@ def visualize_factordict(factordict):
     
     
     
-    
-    
-
-
-def visualize_query_to_root_set(query_factors, root_set):
-    pass
-
     
     
 def heatmap_node_user_adjacency_matrix(nodes, users):
