@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sun Mar 26 12:29:51 2023
+Created on Mon Apr 17 09:59:26 2023
 
 @author: rob
 """
 
-import Graph_3 as G
+
+import Graph_4 as G
 import random
 import copy
 import numpy as np
@@ -13,8 +14,10 @@ import matplotlib.pyplot as plt
 import math
 import visualization as vis
 
-np.set_printoptions(precision=3, suppress=True)
+
 RANDINT_PRIMES_FLOOR = 2
+FALSE_FACTOR_FLOOR = 0.01
+FALSE_FACTOR_CEIL = 0.99
 PRIVATE = 0
 PUBLIC = 1
 
@@ -23,75 +26,46 @@ PUBLIC = 1
 '''
 notes:
     
-    26.03. final step, implement semantics
-
     
-    plotted distribution of equivalence points: it seems that the distribution is negative
-    exponential. this is the kind of behavior that is wanted as a semantic value function,
-    since for a search query, there will be only very few sites that make a good match, but
-    exponentially more sites that do not match at all.
-    
-    
-    
-    
-    compare_semantic_equivalence
-    TODo: to get a more detailed model of semantic equivalence, there are two additional measures:
-      1.) weigh the factors by their probability of occurring: eg. the integer 2 will occur on every
-          second number, so it should be weighted 1 - (1/2), for 3: 1 - (1/3) etc
-          
-      2.) penalize big remaining primes. example: search query [2, 2, 5] should best describe an object
-          that consists of lots of 2 and 5 factors, like [2, 2, 2, 2, 5, 5, 5, 5, 5]. but if the object,
-          although the overall size is the same, like [2, 2, 5, 1820387], has large primes left,
-          the similarity should be penalized.
-          
-          important: check that the scales of the 3 components (points, factorprob, bigprime) in the calculation
-          are the same, ie -> all meta-operations (like mult is a meta operation of add and exp is meta of mult)
-          need to be inversed to achieve the same scale
-          
-          observation: it is ok to use the counting function to generate equivalence points, as long as these points
-          are penalized with the value of factors and the prime remainders.
-          DONE
-    
-    
-    
-    
-    29.03
-    
-    fine-tuning of the trust change mechanics:
-        there is a need to again reduce the amount of false factors, else
-        the overall trust will eventually become zero and the iteration stops
-        with a divide by 0 error.
-        
-    the question is, what behavior does one ultimately want to see?
-    the increase of false factors if there is no willingness to compute! the willingness to 
-    compute as the only mechanism to stop false information.
-    
-    --> false factor probability as an internal value of a node. it increases every time the
-    node IS (?) or IS NOT (?) included in the root set and decreases every time some node discovers some other
-    node's false factors.
-    
-    
-    trust mechanics:
-        instead of allowing trust in both directions, starting with 0, maybe it is more natural to start trust
-        with initial value 1 and continually decrease trust when finding false factors. this also allows for a 
-        proper hits calculation from the beginning
-        
-        
-    TODO: alter the root set selection to be more precise: rank nodes according to their equivalence
-    points and then decide on a threshold, from where nodes below the threshold are not taken
-    into the root set.
-    
-    
-    TODo: actualy implement get_private_ranking DONE
-    TODo: should compare_semantic_equivalence and check_public_factors be the same? YES, DONE
-    TODo: generate a graph that suits the idea of HITS, otherwise HITS will just produce results
-    as good as random when compared to the true ranking. DONE in HITS_4
-    TODo: hub and auth values probably have to be reset after every search query. TRUE, DONE
-    TODO: check for part1 and part2 if subset edge trust should really deliver different results than edge trust
+    TODO: generate a graph that suits the idea of HITS, otherwise HITS will just produce results
+    as good as random when compared to the true ranking.
     TODO: eliminate arbitrary learning rate. forgot the concept....
     
-    NOTE: visualization is only possible of the private factors.. because the public factor objects get too large
-    to be efficiently visualized.
+    TODO: Hyperparameter Elimination Paradigm
+    
+    TODO: make the graph dynamic again. make it possible for nodes to change their connection based on hub/auth values
+          
+    17.04. performing experiments with the graph creation process:
+        what is the more probable way that websites connect? do they connect to other websites that they share
+        semantic information with, or do they connect to websites that are entirely different than themselves?
+        check the 2 graphs "Difference_between_HITS_and_Semantic_Rankings_after_Semantic_Graph_Building" and
+        "Difference_between_HITS_and_Semantic_Rankings_after_Semantic_Graph_Building_with_Ranking_Reversed".
+        they do not differ a lot from each other and they also do not differ too much from the 
+        "Difference_between_HITS_and_Semantic_Rankings" Experiment from HITS_3.
+        
+        the implications of this are not yet entirely clear. 
+        
+        another issue found: because of the semantic graph connection, some nodes do not have parents, 
+        resulting in possibly many auth scores of 0.
+        
+        
+        --> the reason the difference between auth and private ranking is not becoming zero is the fact that
+        both auth scores can get 0 and equivalence points also can be 0. so if there are for example 10 nodes
+        in the root set that both yield an auth score and equivalence points score of 0, the ranking will be
+        arbitrary.
+        
+        
+        solutions:
+            1) equivalence points in compare_semantic_equivalence is set to 1 instead 0 to still profit from
+                the multiplicative penalty factors
+            2) implement dynamic graph mechanics, where nodes without parents get deleted and connections below
+                a certain trust level also get deleted
+                
+        ==> this can be interpreted as websites that actually (private) contain computationally irreducible gibberish
+        will eventually be removed, since their only way of getting into search results is by getting false factors
+        ==> this also hints at the fact that humanly comprehensible information must be compressible. it can and must
+        consist of smaller prime objects, but ultimately human interpretable = compressible = composed
+        
     
     
         
@@ -106,15 +80,10 @@ def mean_nodes_order_similarity(nodeIDs_A, nodeIDs_B):
      switched_order_A = dict()
      switched_order_B = dict()
      
-     #print(nodeIDs_A)
-     #print(nodeIDs_B)
      
      for i in range(len(nodeIDs_A)):
          switched_order_A[nodeIDs_A[i]] = i
          switched_order_B[nodeIDs_B[i]] = i
-         
-     #print(switched_order_A)
-     #print(switched_order_B)
      
      sum_differences = 0    
      for k, v in switched_order_A.items():
@@ -205,7 +174,7 @@ def set_params(*args):
     return [arg for arg in args] 
         
 
-def print_hubAuthTrust_values(nodes):
+def print_hubAuth_values(nodes):
     for n in nodes:
         print(n._id, " hub = ", n.hub, "   auth =", n.auth)
     print()
@@ -216,32 +185,7 @@ def print_parents_children(nodes):
         
         
     print()
-    
-def plot_equivalence_points_distribution():
-
-    b = 9
-    boxes = np.zeros(b)
-    n = 2000
-
-    for _ in range(n):
-    
-        idA = random.randint(RANDINT_PRIMES_FLOOR, 500000000)
-        idB = random.randint(RANDINT_PRIMES_FLOOR, 500)    
-        
-        factorsA = prime_factors(idA)
-        factorsB = prime_factors(idB)
-
-        dA = prime_factors_to_dict(factorsA)
-        dB = prime_factors_to_dict(factorsB)
-
-        c = compare_semantic_equivalence(dA, dB)
-        
-        boxes[c] += 1
-        
-
-
-    plt.bar(range(b), boxes)
-    plt.show()
+ 
     
 
 '''_______________________________UTILS_____________________________________'''
@@ -281,9 +225,11 @@ def prime_factors_to_dict(factors, dict_to_be_extended=None):
 def compare_semantic_equivalence(factorsA, factorsB):
     
     
-    equivalence_points = 0
+
     sumA = sum(factorsA.keys())
     sumB = sum(factorsB.keys())
+    #make it 1, so it can still take the multiplicative penalties into account
+    equivalence_points = 1
     
     for factor, amount in factorsA.items():
         if factor in factorsB:
@@ -295,19 +241,33 @@ def compare_semantic_equivalence(factorsA, factorsB):
 
     return equivalence_points * penalty_for_large_prime_factors
 
-def get_ranking(nodes, query_factors, _type):
+
+
+'''
+see notes 17.04
+'''
+def get_ranking(ids_and_factors, query_factors):
     
     equivalence_points = dict()
-    for n in nodes:
-        if _type == PRIVATE:
-            equivalence_points[n._id] = compare_semantic_equivalence(query_factors, n.private_factors)
-        else:
-            equivalence_points[n._id] = compare_semantic_equivalence(query_factors, n.public_factors)
+    for _id, factors in ids_and_factors:
+        equivalence_points[_id] = compare_semantic_equivalence(query_factors, factors)
+
             
-            #print(n._id, equivalence_points[n._id])
+        #print(_id, equivalence_points[_id])
     #print(equivalence_points)
+    #this makes sure that nodes that share 0 equivalence are shuffled for the ranking,
+    #as doing otherwise would skew the rankings.
+    n_zeros = 0
+    for e in equivalence_points.values():
+        if e == 0:
+            n_zeros +=1
     equivalence_points = sorted(equivalence_points, key=equivalence_points.get)
+    shuffled_part = equivalence_points[:n_zeros]
+    random.shuffle(shuffled_part)
+    equivalence_points[:n_zeros] = shuffled_part
+    
     return equivalence_points
+
 
 
 
@@ -319,18 +279,13 @@ def get_query_factors(content_max, query_factors_scaling):
     return query_factors
 
         
-def get_root_set(nodes, size, query_factors):
-    max_index = len(nodes) - 1
+def get_root_set(nodes, query_factors):
     id_set = set()
-    if size > 1:
-        while len(id_set) < size:
-            id_set.add(random.randint(0, max_index))
-    else: 
-        for n in nodes:
-            for f in query_factors:
-                if f in n.public_factors:
-                    #this is the at least one factor in query factors and public factors the same implementation
-                    id_set.add(n._id)
+    for n in nodes:
+        for f in query_factors:
+            if f in n.public_factors:
+                #this is the at least one factor in query factors and public factors the same implementation
+                id_set.add(n._id)
                     
     return [nodes[_id] for _id in id_set]
 
@@ -358,8 +313,7 @@ def set_trust(nodes, query_factors, willingness_to_compute, learning_rate):
                
                
 
-def set_false_factors(nodes):
-    
+def set_false_factors(nodes): 
     for n in nodes:
         if random.random() < n.false_factor_probability:
             false_factors = prime_factors(random.randint(RANDINT_PRIMES_FLOOR, RANDINT_PRIMES_FLOOR + int(random.expovariate(1 / math.log(n.content)))))
@@ -378,18 +332,20 @@ def inverse_false_factor_probability_function(y):
                     
 def set_false_factor_probability(nodes, root_set):  
     root_set_IDs =  G.get_node_IDs(root_set)
-    min_false_factor_probability = 0.01
-    max_false_factor_probability = 0.99
     for n in nodes:
         if n._id in root_set_IDs:
-            n.false_factor_probability = max(min_false_factor_probability, inverse_false_factor_probability_function(n.false_factor_probability))
+            n.false_factor_probability = max(FALSE_FACTOR_FLOOR, inverse_false_factor_probability_function(n.false_factor_probability))
         else:
-            n.false_factor_probability = min(max_false_factor_probability, false_factor_probability_function(n.false_factor_probability))
+            n.false_factor_probability = min(FALSE_FACTOR_CEIL, false_factor_probability_function(n.false_factor_probability))
          
-    #TODO find a better way to set this probability. linearity is not suitable it seems
+    
     
 def get_n_false_factors(nodes):
     return sum(abs(len(n.public_factors) - len(n.private_factors)) for n in nodes)
+        
+
+
+        
         
         
     
@@ -407,75 +363,59 @@ def HITS_hubAuth_reset(nodes):
     normalize_auths(nodes, len(nodes))
     normalize_hubs(nodes, len(nodes))      
                        
-
-        
-def HITS_init(nodes, content_max, uniform_init_edges, false_factor_probability_init):
-
+       
+def HITS_init(nodes, content_max, edge_init):
+    
+    HITS_hubAuth_reset(nodes)
     for n in nodes:
-        n.auth = 1.
-        n.hub = 1.
-        G.set_content_and_private_factors(n, content_max)
-        G.set_public_factors(n)
-        if uniform_init_edges >= 0:
-            G.set_all_edge_weights(nodes, uniform_init_edges)
-        n.false_factor_probability = false_factor_probability_init
-        
-        
-    normalize_auths(nodes, len(nodes))
-    normalize_hubs(nodes, len(nodes))       
-
+        G.init_content(n, content_max)
+        if edge_init >= 0:
+            G.set_all_edge_weights(nodes, edge_init)
+ 
     
-    
-def HITS_iteration(nodes, n_search_queries, root_set_size=-1, n_steps=5,
-                   enable_trust=False, content_max=1000, query_factors_scaling=1,
-                   _willingness_to_compute=0.5, learning_rate=0.01):
-    
-    
-    avg_trusts = []
+def HITS_iteration(nodes, n_search_queries, n_steps=5,
+                   content_max=1000, query_factors_scaling=1,
+                   willingness_to_compute=0.5, learning_rate=0.1,
+                   edge_init=1.):
+      
     order_similarities_rnd_auth = []
     order_similarities_private_auth = []
     order_similarities_public_auth = []
-    n_false_factors = []
-    willingness_to_compute = 0.
-    wtcs = []
-    
-    
-    
+    avg_false_factor_probabilities = []
+    avg_trusts = []
     for nth_query in range(n_search_queries):
         
-        wtcs.append(willingness_to_compute)
+        print(nth_query)
+        #print_parents_children(nodes)
+        #print("n edges in the system: ", G.get_n_edges(nodes))
+        n_lost_edges = G.replace_parentless_nodes(nodes, content_max)
+        n_removed_edges = G.remove_untrustworthy_edges(nodes, 0.7)
+        print("n parentless: ", G.get_n_parentless(nodes), "lost edges:", n_lost_edges, "n removed edges: ", n_removed_edges)
+        G.replace_edges(nodes, n_lost_edges + n_removed_edges, edge_init)
+        print("n edges in the system AFTER: ", G.get_n_edges(nodes))
+        #print_parents_children(nodes)
         
+         
         query_factors = get_query_factors(content_max, query_factors_scaling)
-        root_set = get_root_set(nodes, root_set_size, query_factors)
-        #vis.visualize_factordict(query_factors)
-        '''for n in root_set:
-            vis.visualize_factordict(n.public_factors)'''
-            
-        anti_root_set = [nodes[m] for m in (set([n._id for n in nodes]) - set([n._id for n in root_set]))]
-        '''if len(root_set) >= 9 and len(anti_root_set) >= 9 and len(query_factors.keys()) >= 3:
-            #NOTE: public sets tend to blow up the computation, because false factors increase the object size
-            #over a limit that is computationally feasible.
-            #vis.plot_query_and_root_set(query_factors, root_set, "Query Factors and the Public Factors of the Root-Set Nodes", None, 1)
-            vis.plot_query_and_root_set(query_factors, root_set, "Query Factors and the Private Factors of the Root-Set Nodes", None, 2)
-            #vis.plot_query_and_root_set(query_factors, root_set, "Query Factors and the Public Factors of the Anti-Root-Set Nodes", anti_root_set, 3)
-            vis.plot_query_and_root_set(query_factors, root_set, "Query Factors and the Private Factors of the Anti-Root-Set Nodes", anti_root_set, 4)'''
-            
-            
+        root_set = get_root_set(nodes, query_factors)
         set_trust(nodes, query_factors, willingness_to_compute, learning_rate)
         set_false_factors(nodes)
         set_false_factor_probability(nodes, root_set)
-        n_false_factors.append(get_n_false_factors(nodes))
-        #print("false factors: ", get_n_false_factors(nodes))
+        #print("avg false factor probs:", G.get_avg_false_factor_probability(nodes))
+        
 
 
         HITS_hubAuth_reset(nodes)
         for _ in range(n_steps):
-            HITS_one_step(nodes, root_set, enable_trust)
-
-        private_ranking = get_ranking(root_set, query_factors, PRIVATE)
-        public_ranking = get_ranking(root_set, query_factors, PUBLIC)
+            HITS_one_step(nodes, root_set)
+            
+        private_ranking = get_ranking([(n._id, n.private_factors) for n in root_set], query_factors)
+        public_ranking = get_ranking([(n._id, n.public_factors) for n in root_set], query_factors)
         sorted_nodes_auths, sorted_nodes_hubs = get_sorted_nodes(root_set)
         sorted_nodes_auths_IDs = [n._id for n in sorted_nodes_auths]
+        sorted_nodes_hubs_IDs = [n._id for n in sorted_nodes_hubs]
+        avg_trusts.append(G.get_avg_trust(nodes))
+        avg_false_factor_probabilities.append(G.get_avg_false_factor_probability(nodes))
         
         if len(private_ranking) > 0:
             shuffled_nodes = private_ranking.copy()
@@ -486,65 +426,51 @@ def HITS_iteration(nodes, n_search_queries, root_set_size=-1, n_steps=5,
             order_similarities_rnd_auth.append(order_similarity_rnd_auth)
             order_similarities_private_auth.append(order_similarity_private_auth)
             order_similarities_public_auth.append(order_similarity_public_auth)
-            '''print("private vs auth", order_similarity_private_auth)
-            print("public vs auth", order_similarity_public_auth)
-            print("rnd vs auth", order_similarity_rnd_auth)'''
+            
+            if nth_query > 24980:
+                print("query factors: ", query_factors)
+                print("private vs auth", order_similarity_private_auth)
+                print("public vs auth", order_similarity_public_auth)
+                print("rnd vs auth", order_similarity_rnd_auth)  
+                print("private: ", private_ranking)
+                print("public: ", public_ranking)
+                print("hits auth: ", sorted_nodes_auths_IDs)
+                print("hits hubs: ", sorted_nodes_hubs_IDs)
         
+        if nth_query % 200 == 0:
+            print_hubAuth_values(root_set)
+          
+        '''print("query factors: ", query_factors)
+        print("private: ", [(n._id, n.private_factors) for n in root_set])
+        print("pulic: ", [(n._id, n.public_factors) for n in root_set])
+        private_ranking = get_ranking([(n._id, n.private_factors) for n in root_set], query_factors)
+        public_ranking = get_ranking([(n._id, n.public_factors) for n in root_set], query_factors)
+        print("private ranking: ", private_ranking)
+        print("public ranking: ", public_ranking)
+        print()'''
 
-        
-        '''if len(private_ranking) > 0 and len(root_set) >= 9 and len(query_factors) >= 3 and nth_query >= 900:
-            
-            
-
-            private_ranking.reverse()
-            vis.plot_ranking(query_factors, [nodes[i] for i in private_ranking], "Private Ranking of Nodes: Highest Score Left Upper Corner")
-            sorted_nodes_auths.reverse()
-            vis.plot_ranking(query_factors, sorted_nodes_auths, "HITS Ranking on Authority Values: Highest Score Left Upper Corner")'''
-            
-        avg_trusts.append(G.get_avg_trust(nodes))
-        willingness_to_compute = min(1, willingness_to_compute + 0.002)
-        
-        
-        
     
-    print_hubAuthTrust_values(nodes)
-    print([n.false_factor_probability for n in nodes])
-    print_parents_children(nodes)
-    print("avg trust: ", G.get_avg_trust(nodes))
-    vis.plot_false_factors_and_wtc(n_false_factors, wtcs)
-    #vis.plot_avg_trusts(avg_trusts)
     #vis.plot_order_similarities(order_similarities_rnd_auth, order_similarities_private_auth, order_similarities_public_auth)
-    
+    vis.plot_avg_trusts(avg_trusts)
+    vis.plot_avg_false_factor_probabilities(avg_false_factor_probabilities)
     return nodes
         
         
         
         
 
-def HITS_one_step(all_nodes, subset_nodes, enable_trust):
+def HITS_one_step(all_nodes, subset_nodes):
     
     #nodes old is required so the algorithm does not take the already updated
     #values in the for loop.
     nodes_old = copy.deepcopy(all_nodes)
             
-   
     for node in subset_nodes:
-        
-        parents = node.parents
-        children = node.children
-        
-        if enable_trust:   
-            node.auth = sum(nodes_old[p._id].hub * nodes_old[p._id].edges.get(node._id) for p in parents)
-            node.hub = sum(nodes_old[c._id].auth * nodes_old[node._id].edges.get(c._id) for c in children)
-        else:
-            node.auth = sum(nodes_old[p._id].hub for p in parents)
-            node.hub = sum(nodes_old[c._id].auth for c in children)
-
+        node.auth = sum(nodes_old[p._id].hub * nodes_old[p._id].edges.get(node._id) for p in node.parents)
+        node.hub = sum(nodes_old[c._id].auth * nodes_old[node._id].edges.get(c._id) for c in node.children)
 
     normalize_auths(subset_nodes, sum(n.auth for n in all_nodes))
     normalize_hubs(subset_nodes, sum(n.hub for n in all_nodes))
-    
-
     
     return nodes
 
@@ -560,41 +486,41 @@ if __name__ == '__main__':
     n_nodes = 100
     n_edges = 400
     n_users = n_nodes
-    n_search_queries = 700
-    root_set_size = 5
+    n_search_queries = 3000
     std_learning_rate = 0.1
     edge_init = 1.0
-    false_factor_probability_init = 0.01
+    content_max = 10**6
+    query_factors_scaling = 3
+    wtc = 0.1
+
     
     n_search_queries_id = 0
-    root_set_size_id = 1
-    enable_trust_id = 2
-    content_max_id = 3
-    query_factors_scaling_id = 4
-    willingness_to_compute_id = 5
-    learning_rate_id = 6
-    name_id = 7
+    edge_init_id = 1
+    content_max_id = 2
+    query_factors_scaling_id = 3
+    willingness_to_compute_id = 4
+    learning_rate_id = 5
+    name_id = 6
     
     #params corresponding to the above definitions
     
-    std_hits = [1, n_nodes, False, 10**10, 6, 0.1, 0.5, 0., "std HITS"]
-    semantic_std_hits = [n_search_queries, -1, False, 10**10, 4, 0.01, std_learning_rate, "semantic std HITS"]
-    semantic_trust_hits = [n_search_queries, -1, True, 10**6, 3, 1., std_learning_rate, "semantic trust HITS"]
+    
+    
+    semantic_trust_hits = [n_search_queries, edge_init, content_max, query_factors_scaling, wtc, std_learning_rate, "semantic trust HITS"]
     
 
     create_new_graph = True
     if create_new_graph:
-        base_nodes = G.create_random_weighted_directed_document_nodes(n_nodes, n_edges)
-        G.save_graph(base_nodes, "rnd_100n_400e_3")
+        #base_nodes = G.create_random_weighted_directed_document_nodes(n_nodes, n_edges)
+        base_nodes = G.create_semantic_connection_nodes(n_nodes, n_edges, content_max)
+        G.save_graph(base_nodes, "rnd_100n_400e_4")
     else:     
-        base_nodes = G.load_graph("rnd_100n_400e_3")
+        base_nodes = G.load_graph("rnd_100n_400e_4")
         
     #G.visualize(base_nodes)
     print_parents_children(base_nodes)
     
-    params = set_params(std_hits,
-                        semantic_std_hits,
-                        semantic_trust_hits)
+    params = set_params(semantic_trust_hits)
     
     params = [params[-1]]
     
@@ -607,17 +533,16 @@ if __name__ == '__main__':
         
         print("\n\n", param[name_id], "\n")
         #print_parents_children(nodes)
-        uniform_init_edges = edge_init if param[root_set_size_id] < 0 else -1
-        HITS_init(nodes, param[content_max_id], uniform_init_edges, false_factor_probability_init)
+        
+        HITS_init(nodes, param[content_max_id], edge_init)
         HITS_iteration(nodes,
                        param[n_search_queries_id],
-                       param[root_set_size_id],
                        n_steps, 
-                       param[enable_trust_id],
                        param[content_max_id],
                        param[query_factors_scaling_id],
                        param[willingness_to_compute_id],
-                       param[learning_rate_id])
+                       param[learning_rate_id],
+                       edge_init)
         
         
         #print_parents_children(nodes)
@@ -626,7 +551,7 @@ if __name__ == '__main__':
         sorted_nodes_auths.append(sorted_nodes_auth)
         sorted_nodes_hubs.append(sorted_nodes_hub)
 
-    
+    print_parents_children(nodes)
     sorted_nodeIDs_auths, sorted_nodeIDs_hubs = get_sorted_nodeIDs(params, sorted_nodes_auths, sorted_nodes_hubs)    
     
     

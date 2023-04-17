@@ -53,13 +53,44 @@ def test_get_private_ranking():
         
         
 
+def plot_equivalence_points_distribution():
+
+    b = 9
+    boxes = np.zeros(b)
+    n = 2000
+
+    for _ in range(n):
+    
+        idA = random.randint(2, 500000000)
+        idB = random.randint(2, 500)    
         
+        factorsA = H.prime_factors(idA)
+        factorsB = H.prime_factors(idB)
+
+        dA = H.prime_factors_to_dict(factorsA)
+        dB = H.prime_factors_to_dict(factorsB)
+
+        c = H.compare_semantic_equivalence(dA, dB)
+        
+        boxes[c] += 1
+        
+
+
+    plt.bar(range(b), boxes)
+    plt.show()      
 
 
 
 
 if __name__ == "__main__":
-    #test_get_private_ranking()
+    nodes = [G.Node(i) for i in range(10)]
+    
+    nodes[0].parents = [nodes[1], nodes[2], nodes[3]]
+    
+    print([n._id for n in nodes])
+    print([n._id for n in nodes[0].parents])
+    print(nodes[0].parents.index(nodes[3]))
+    
     
 
 

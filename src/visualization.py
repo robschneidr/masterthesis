@@ -45,9 +45,9 @@ def plot_order_similarities(rnd, private, public):
     
 
     # Plot the data and linear regression lines
-    sns.regplot(x=x, y=avg_rnd, scatter=True, label="HITS - Random Ranking")
+    sns.regplot(x=x, y=avg_rnd, scatter=False, label="HITS - Random Ranking")
     sns.regplot(x=x, y=avg_private, scatter=True, label="HITS - Private Factor Ranking ")
-    sns.regplot(x=x, y=avg_public, scatter=True, label=" HITS - Public Ranking")
+    sns.regplot(x=x, y=avg_public, scatter=False, label=" HITS - Public Ranking")
     
     plt.xlabel("Iterations")
     plt.ylabel("Normalized Ranking Difference")
@@ -56,6 +56,19 @@ def plot_order_similarities(rnd, private, public):
     # Show the plot
     plt.show()
     
+def plot_avg_false_factor_probabilities(avg_ffps):
+    plt.rcParams['figure.dpi'] = 600
+    size = len(avg_ffps)
+    step_size = 50
+    avg_avg_ffps = []
+    for i in range(0, size - step_size - 1, step_size):
+        avg_avg_ffps.append(np.mean(avg_ffps[i:i + step_size]))
+    sns.regplot(x=np.arange(len(avg_avg_ffps)), y=avg_avg_ffps, scatter=True)
+    plt.xlabel("Iterations")
+    plt.ylabel("Average False Factor Probability")
+    plt.title("Average False Factor Probabilities of All Nodes")
+    
+    plt.show()
 
 
 def plot_avg_trusts(avg_trusts):
