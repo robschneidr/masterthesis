@@ -7,12 +7,14 @@ Created on Mon Apr 17 09:59:26 2023
 
 
 import Graph_4 as G
+import Functions as F
 import random
 import copy
 import numpy as np
 import matplotlib.pyplot as plt
 import math
 import visualization as vis
+from collections import deque
 
 
 RANDINT_PRIMES_FLOOR = 2
@@ -68,6 +70,21 @@ notes:
         
     
     
+    18.04
+    
+    work on the concept of setting the trust change after discovering a false factor probability. discovering the first lie
+    is probably the biggest change in information, so it should be valued the most. 
+    
+    concept: functions also need some kind of hyperparameter (steepness) that is arbitrarily selected. why not decentrally
+    select hyperparamters that are a result of the underlying structures and their interests.
+    => solution: get a value that has combined information over the whole network and use this value as a reference to
+    determine function hyperparameters. see implementation
+    
+    
+    TODO: refine the set false factor probability function. the problem right now is that at some point all the nodes
+    are in the root set, and no node has the need to set false factors. however, the ranking is quite large then and
+    this is not good. better to set false factor probability based on the actual ranking, or 0 if it is not even included.
+    
         
 
 '''
@@ -119,10 +136,10 @@ def normalize_hubs(nodes, sum_hubs):
 
 def get_sorted_nodes(nodes):
     
-    sorted_nodes_auth = copy.deepcopy(nodes)
+    sorted_nodes_auth = copy.copy(nodes)
     sorted_nodes_auth.sort(key=sort_by_auth)
     
-    sorted_nodes_hub = copy.deepcopy(nodes)
+    sorted_nodes_hub = copy.copy(nodes)
     sorted_nodes_hub.sort(key=sort_by_hub) 
     
     return sorted_nodes_auth, sorted_nodes_hub
@@ -134,41 +151,13 @@ def sort_by_auth(node):
 def sort_by_hub(node):
     return node.hub
 
-def get_sorted_nodeIDs_no_params(sorted_nodes_auths, sorted_nodes_hubs):
+def print_hubAuth_Ranking(sorted_nodes_auths, sorted_nodes_hubs):
     
     print()
     print([n._id for n in sorted_nodes_auths], "AUTH")
     print([n._id for n in sorted_nodes_hubs], "HUB")
     print()
     
-
-def get_sorted_nodeIDs(params, sorted_nodes_auths, sorted_nodes_hubs):
-    
-    sorted_nodeIDs_auths = []
-    sorted_nodeIDs_hubs = []
-
-    
-    for i in range(2):
-        if i == 0:
-            value_name = "AUTH: "
-            vals = sorted_nodes_auths
-            sorted_nodeIDs = sorted_nodeIDs_auths
-            
-        else:
-            value_name = "HUB: "
-            vals = sorted_nodes_hubs
-            sorted_nodeIDs = sorted_nodeIDs_hubs
-
-                      
-        for i, param in enumerate(params):
-            sorted_nodeIDs.append([node._id for node in vals[i]])
-            print([node._id for node in vals[i]], value_name + " " + param[name_id])
-            
-        print()
-        
-    print()
-            
-    return sorted_nodeIDs_auths, sorted_nodeIDs_hubs
 
 def set_params(*args):
     return [arg for arg in args] 
@@ -238,7 +227,8 @@ def compare_semantic_equivalence(factorsA, factorsB):
             
     _scaler = math.log(max(sumA, sumB))
     penalty_for_large_prime_factors = (1 - (abs(sumA - sumB) / max(sumA, sumB))) ** (1 / _scaler)
-
+    
+    #print("eq pen", equivalence_points * penalty_for_large_prime_factors)
     return equivalence_points * penalty_for_large_prime_factors
 
 
@@ -290,26 +280,46 @@ def get_root_set(nodes, query_factors):
     return [nodes[_id] for _id in id_set]
 
 
-def set_trust(nodes, query_factors, willingness_to_compute, learning_rate):
-    
-    #TODo: penalize low value false factors, because they are most likely to be 
-    #added to the root set. DONE s
-    
+def compute(nodes, query_factors, willingness_to_compute, false_factor_levels, edge_init):
+    #this method should resemble the "additional" energy that a node decides to spend
+    #on contributing to the network. for now (18.04) the additional computational work
+    #is done through the calculation of the private_semantic_equivalence relative to the query.
+    computed_trusts = []
     for n in nodes:
         if random.random() < willingness_to_compute:
-            for c in n.children:
-               true_semantic_equivalence = compare_semantic_equivalence(query_factors, c.private_factors)
-               public_semantic_equivalence = compare_semantic_equivalence(query_factors, c.public_factors)
-               false_factor_difference = abs(public_semantic_equivalence - true_semantic_equivalence)
-               trust_change = learning_rate * false_factor_difference
-               n.edges[c._id] = max(0, min(1, n.edges[c._id] - trust_change))
-               '''print("query: ", query_factors)
-               print("checked child ", c._id, "content: ", c.content, "false factors: ", false_factor_difference, "tc: ", trust_change) 
-               print("public factors: ", c.public_factors)
-               print("private factors: ", c.private_factors)
-               print()'''
-               if false_factor_difference > 0:
-                   nodes[c._id].public_factors = copy.deepcopy(nodes[c._id].private_factors)
+            computed_trusts.append(set_trust(n , query_factors, willingness_to_compute, false_factor_levels, edge_init))
+    
+    if computed_trusts:
+        #print("compo", computed_trusts, np.mean(computed_trusts))
+        return np.mean(computed_trusts)
+    else:
+        return edge_init
+            
+            
+
+
+def set_trust(node, query_factors, willingness_to_compute, false_factor_levels, edge_init):
+    
+    new_trust = edge_init  
+    for c in node.children:
+        #Note that the access to c's private factors can only be obtained through computation of the factors
+       private_semantic_equivalence = compare_semantic_equivalence(query_factors, c.private_factors)
+       public_semantic_equivalence = compare_semantic_equivalence(query_factors, c.public_factors)
+       false_factor_level = abs(public_semantic_equivalence - private_semantic_equivalence)
+       mean_false_factor_level = np.mean(false_factor_levels)
+
+       previous_trust = F.ilffd(node.edges[c._id])
+       trust_change = mean_false_factor_level - false_factor_level
+       new_trust = F.lffd(previous_trust + trust_change)
+
+       node.edges[c._id] = new_trust
+
+       if false_factor_level > 0:
+           G.reset_public_factors(nodes[c._id])
+           
+       false_factor_levels.append(false_factor_level)
+       
+    return new_trust
                
                
 
@@ -324,19 +334,15 @@ def set_false_factors(nodes):
                     n.public_factors[false_factor] = 1
                     
 
-def false_factor_probability_function(x):
-    return 1 - (1 / math.exp(3 * x))
-
-def inverse_false_factor_probability_function(y):
-    return -(1 / 3) * math.log(1 - y, math.e)                   
+    
                     
 def set_false_factor_probability(nodes, root_set):  
     root_set_IDs =  G.get_node_IDs(root_set)
     for n in nodes:
         if n._id in root_set_IDs:
-            n.false_factor_probability = max(FALSE_FACTOR_FLOOR, inverse_false_factor_probability_function(n.false_factor_probability))
+            n.false_factor_probability = max(FALSE_FACTOR_FLOOR, F.inverse_false_factor_probability_function(n.false_factor_probability))
         else:
-            n.false_factor_probability = min(FALSE_FACTOR_CEIL, false_factor_probability_function(n.false_factor_probability))
+            n.false_factor_probability = min(FALSE_FACTOR_CEIL, F.false_factor_probability_function(n.false_factor_probability))
          
     
     
@@ -364,50 +370,61 @@ def HITS_hubAuth_reset(nodes):
     normalize_hubs(nodes, len(nodes))      
                        
        
-def HITS_init(nodes, content_max, edge_init):
+def HITS_init(nodes, content_max, edge_init, false_factor_levels):
     
     HITS_hubAuth_reset(nodes)
     for n in nodes:
         G.init_content(n, content_max)
         if edge_init >= 0:
             G.set_all_edge_weights(nodes, edge_init)
+    
+    #this is important for the np.mean in compute_semantic_equivalence to be not NaN at first
+    false_factor_levels.append(0)
  
     
 def HITS_iteration(nodes, n_search_queries, n_steps=5,
                    content_max=1000, query_factors_scaling=1,
-                   willingness_to_compute=0.5, learning_rate=0.1,
-                   edge_init=1.):
+                   willingness_to_compute=0.5, edge_init=0.5):
+    
+    false_factor_levels = deque(maxlen=len(nodes))
+    HITS_init(nodes, content_max, edge_init, false_factor_levels)
       
     order_similarities_rnd_auth = []
     order_similarities_private_auth = []
     order_similarities_public_auth = []
     avg_false_factor_probabilities = []
     avg_trusts = []
+    
+    
+    
     for nth_query in range(n_search_queries):
         
-        print(nth_query)
-        #print_parents_children(nodes)
-        #print("n edges in the system: ", G.get_n_edges(nodes))
-        n_lost_edges = G.replace_parentless_nodes(nodes, content_max)
-        n_removed_edges = G.remove_untrustworthy_edges(nodes, 0.7)
-        print("n parentless: ", G.get_n_parentless(nodes), "lost edges:", n_lost_edges, "n removed edges: ", n_removed_edges)
-        G.replace_edges(nodes, n_lost_edges + n_removed_edges, edge_init)
-        print("n edges in the system AFTER: ", G.get_n_edges(nodes))
+        #print("nth query: ", nth_query)
         #print_parents_children(nodes)
         
-         
         query_factors = get_query_factors(content_max, query_factors_scaling)
+        avg_computed_trust = compute(nodes, query_factors, willingness_to_compute, false_factor_levels, edge_init)
+
+        
+        n_lost_edges = G.replace_parentless_nodes(nodes, content_max)
+        n_removed_edges = G.remove_untrustworthy_edges(nodes, avg_computed_trust, edge_init)
+        G.replace_edges(nodes, n_lost_edges + n_removed_edges, edge_init)
+
         root_set = get_root_set(nodes, query_factors)
-        set_trust(nodes, query_factors, willingness_to_compute, learning_rate)
+        #print("n edges in the system AFTER: ", G.get_n_edges(nodes))
+        
+        
         set_false_factors(nodes)
         set_false_factor_probability(nodes, root_set)
         #print("avg false factor probs:", G.get_avg_false_factor_probability(nodes))
         
 
-
+  
         HITS_hubAuth_reset(nodes)
         for _ in range(n_steps):
             HITS_one_step(nodes, root_set)
+            
+        
             
         private_ranking = get_ranking([(n._id, n.private_factors) for n in root_set], query_factors)
         public_ranking = get_ranking([(n._id, n.public_factors) for n in root_set], query_factors)
@@ -418,7 +435,7 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
         avg_false_factor_probabilities.append(G.get_avg_false_factor_probability(nodes))
         
         if len(private_ranking) > 0:
-            shuffled_nodes = private_ranking.copy()
+            shuffled_nodes = copy.copy(private_ranking)
             random.shuffle(shuffled_nodes)
             order_similarity_rnd_auth = mean_nodes_order_similarity(shuffled_nodes, sorted_nodes_auths_IDs)
             order_similarity_private_auth = mean_nodes_order_similarity(private_ranking, sorted_nodes_auths_IDs)
@@ -427,7 +444,7 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
             order_similarities_private_auth.append(order_similarity_private_auth)
             order_similarities_public_auth.append(order_similarity_public_auth)
             
-            if nth_query > 24980:
+            if nth_query % 50 == 0:
                 print("query factors: ", query_factors)
                 print("private vs auth", order_similarity_private_auth)
                 print("public vs auth", order_similarity_public_auth)
@@ -437,8 +454,14 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
                 print("hits auth: ", sorted_nodes_auths_IDs)
                 print("hits hubs: ", sorted_nodes_hubs_IDs)
         
-        if nth_query % 200 == 0:
+        if nth_query % 50 == 0:
             print_hubAuth_values(root_set)
+            print_parents_children(nodes)
+            print_hubAuth_Ranking(sorted_nodes_auths, sorted_nodes_hubs)
+            print(np.mean(false_factor_levels))
+            print("avg trust", np.mean(avg_trusts))
+            print("n parentless: ", G.get_n_parentless(nodes), "lost edges:", n_lost_edges, "n removed edges: ", n_removed_edges, "avg trust:" )
+
           
         '''print("query factors: ", query_factors)
         print("private: ", [(n._id, n.private_factors) for n in root_set])
@@ -451,8 +474,8 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
 
     
     #vis.plot_order_similarities(order_similarities_rnd_auth, order_similarities_private_auth, order_similarities_public_auth)
-    vis.plot_avg_trusts(avg_trusts)
-    vis.plot_avg_false_factor_probabilities(avg_false_factor_probabilities)
+    #vis.plot_avg_trusts(avg_trusts)
+    #vis.plot_avg_false_factor_probabilities(avg_false_factor_probabilities)
     return nodes
         
         
@@ -482,78 +505,41 @@ def HITS_one_step(all_nodes, subset_nodes):
 
 if __name__ == '__main__':
     
-    n_steps = 20
     n_nodes = 100
     n_edges = 400
-    n_users = n_nodes
+
     n_search_queries = 3000
-    std_learning_rate = 0.1
-    edge_init = 1.0
+    n_steps = 20
     content_max = 10**6
     query_factors_scaling = 3
-    wtc = 0.1
+    willingness_to_compute = 0.2
+    edge_init = 0.5
 
-    
-    n_search_queries_id = 0
-    edge_init_id = 1
-    content_max_id = 2
-    query_factors_scaling_id = 3
-    willingness_to_compute_id = 4
-    learning_rate_id = 5
-    name_id = 6
-    
-    #params corresponding to the above definitions
-    
-    
-    
-    semantic_trust_hits = [n_search_queries, edge_init, content_max, query_factors_scaling, wtc, std_learning_rate, "semantic trust HITS"]
-    
+
 
     create_new_graph = True
     if create_new_graph:
         #base_nodes = G.create_random_weighted_directed_document_nodes(n_nodes, n_edges)
-        base_nodes = G.create_semantic_connection_nodes(n_nodes, n_edges, content_max)
-        G.save_graph(base_nodes, "rnd_100n_400e_4")
+        nodes = G.create_semantic_connection_nodes(n_nodes, n_edges, content_max)
+        G.save_graph(nodes, "rnd_100n_400e_4")
     else:     
-        base_nodes = G.load_graph("rnd_100n_400e_4")
+        nodes = G.load_graph("rnd_100n_400e_4")
         
     #G.visualize(base_nodes)
-    print_parents_children(base_nodes)
     
-    params = set_params(semantic_trust_hits)
-    
-    params = [params[-1]]
-    
-    node_copies = [copy.deepcopy(base_nodes) for nodes in range(len(params))] 
-    sorted_nodes_auths = []
-    sorted_nodes_hubs = []
-
-    
-    for nodes, param in zip(node_copies, params):
-        
-        print("\n\n", param[name_id], "\n")
-        #print_parents_children(nodes)
-        
-        HITS_init(nodes, param[content_max_id], edge_init)
-        HITS_iteration(nodes,
-                       param[n_search_queries_id],
-                       n_steps, 
-                       param[content_max_id],
-                       param[query_factors_scaling_id],
-                       param[willingness_to_compute_id],
-                       param[learning_rate_id],
-                       edge_init)
-        
-        
-        #print_parents_children(nodes)
-
-        sorted_nodes_auth, sorted_nodes_hub = get_sorted_nodes(nodes)
-        sorted_nodes_auths.append(sorted_nodes_auth)
-        sorted_nodes_hubs.append(sorted_nodes_hub)
-
     print_parents_children(nodes)
-    sorted_nodeIDs_auths, sorted_nodeIDs_hubs = get_sorted_nodeIDs(params, sorted_nodes_auths, sorted_nodes_hubs)    
-    
+
+    HITS_iteration(nodes,
+                   n_search_queries,
+                   n_steps, 
+                   content_max,
+                   query_factors_scaling,
+                   willingness_to_compute,
+                   edge_init)
+        
+        
+    #print_parents_children(nodes)
+
     
      
 

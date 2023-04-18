@@ -13,6 +13,7 @@ import HITS_3 as H
 import matplotlib.pyplot as plt
 import math
 import seaborn as sns
+from collections import deque
 
 def mean_nodes_order_similarity(nodeIDs_A, nodeIDs_B):
     
@@ -83,13 +84,9 @@ def plot_equivalence_points_distribution():
 
 
 if __name__ == "__main__":
-    nodes = [G.Node(i) for i in range(10)]
     
-    nodes[0].parents = [nodes[1], nodes[2], nodes[3]]
     
-    print([n._id for n in nodes])
-    print([n._id for n in nodes[0].parents])
-    print(nodes[0].parents.index(nodes[3]))
+    print(np.mean([]))
     
     
 

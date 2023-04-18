@@ -43,8 +43,10 @@ class Node:
 def init_content(node, content_max):
     node.content = random.randint(HITS.RANDINT_PRIMES_FLOOR, content_max)
     node.private_factors = HITS.prime_factors_to_dict(HITS.prime_factors(node.content))
-    node.public_factors = copy.deepcopy(node.private_factors)
+    reset_public_factors(node)
 
+def reset_public_factors(node):
+    node.public_factors = copy.deepcopy(node.private_factors)
     
 def set_all_edge_weights(nodes, weight):
     for n in nodes:
@@ -65,17 +67,18 @@ def get_edge_ids(nodes):
             edges.add((n._id, child._id))
     return edges
 
- 
     
 def get_avg_false_factor_probability(nodes):
     return sum(n.false_factor_probability for n in nodes) / len(nodes)
 
-def get_avg_trust(nodes):
+def get_avg_trust(nodes, edge_init=0.5):
     cusum = 0.
     count = 0
     for n in nodes:
         cusum += sum(weight for weight in n.edges.values())
         count += len(n.edges)
+    if count == 0:
+        return edge_init
     return cusum / count
 
 def get_n_parentless(nodes):
@@ -91,13 +94,17 @@ def get_nodes_from_IDs(nodes, IDs):
 def get_node_IDs(nodes):
     return set([n._id for n in nodes])
 
-def remove_untrustworthy_edges(nodes, threshold):
+def get_total_avg_trust(n, edge_init, avg_computed_trust):
+    return ((get_avg_trust([n], edge_init) + avg_computed_trust + edge_init) / 3) * (1 - (1 / (1 + len(n.edges))))
+
+
+def remove_untrustworthy_edges(nodes, avg_computed_trust, edge_init):
     n_removed_edges = 0
     for n in nodes:
         edges_to_be_removed = set()
-        for child, trust in n.edges.items():
-                  
-            if trust < threshold:
+        total_avg_trust = get_total_avg_trust(n, edge_init, avg_computed_trust)
+        for child, trust in n.edges.items():                 
+            if trust < total_avg_trust:
                 #print("node", n._id, "child", child, "trustworthiness", trust)
                 #print("children before: ", [m._id for m in n.children])
                 #print("parents of child before: ", [m._id for m in nodes[child].parents])
@@ -134,14 +141,14 @@ def replace_edges(nodes, n_lost_edges, edge_init):
     _edges = get_edge_ids(nodes)
     previous_size = len(_edges)
     max_index = len(nodes) - 1
+    rankings = [HITS.get_ranking([(m._id, m.public_factors) for m in nodes if m._id != parent._id], parent.private_factors) for parent in nodes]
     while len(_edges) < previous_size + n_lost_edges:
         parent_id = random.randint(0, max_index)
         parent = nodes[parent_id]
-        ranking = HITS.get_ranking([(m._id, m.public_factors) for m in nodes if m._id != parent._id], parent.private_factors)
-        child_id = nodes[ranking.pop()]._id
+        child_id = nodes[rankings[parent_id].pop()]._id
+        child = nodes[child_id]
         if (parent_id, child_id) not in _edges:
             parent = nodes[parent_id]         
-            child = nodes[child_id]
             parent.children.append(child)
             child.parents.append(parent)
             parent.edges.update({child_id : edge_init})
