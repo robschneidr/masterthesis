@@ -85,6 +85,51 @@ notes:
     are in the root set, and no node has the need to set false factors. however, the ranking is quite large then and
     this is not good. better to set false factor probability based on the actual ranking, or 0 if it is not even included.
     
+    ==> how do you turn the information about the relative position in a ranking into a useful information about how probable
+    it will be to add false factors
+    
+    TODO: investigate why the adding of global hyperparameters can not achieve an adequate structure change so no information
+    is lost between two program parts (or maybe it can?)
+    
+    ==> the logistic function can serve as a good way to model beliefs, because the function is steepest in both directions, 
+    when no information is yet available. if more and more facts have been collected about certain beliefs the rate of change
+    in both directions will become exponentially slower.
+    
+    
+    19.04.
+    the main parts seem to be finished. the first results are very promising. the top value in the hits auth ranking is an
+    object that has an extremely low false factor probability. its children have perfect trust scores and are indeed
+    also ranked very high in the auth ranking. there is not a single false factor in the public set. wtc is at 0.5
+    most importantly: the object has an extremely low kolmogorov complexity / object size ratio. 
+    priv factors {2: 6, 3: 1, 7: 1, 643: 1} -> ID = 864 192. with content max at 1 000 000 a really good score
+    calculation of kolmogorov complexity:
+        the shortest program to produce the prime number 2 under sequential addition is 1 + 1. so it takes 2 steps
+        similar for 3 -> 1 + 1 + 1 = 3 steps and so on....
+        now one multiplication step takes 2 * n - 1 steps
+        we have 6 + 1 + 1 + 1 of them.
+        6 * 2 * 2 + 1 * 2 * 3 + 1 * 2 * 7 + 1 * 2 * 643 = 1330
+        
+        as a total it takes 1330 + 2 + 3 + 7 + 643 = 1985 steps instead of 864 192
+        
+        note the object with the highest compressibility is 2^x -> 19 * 2 * 2 + 2 = 78 steps
+        
+        the kolmo / size ratio will be 1985 / 864 192 = 0.002
+        
+        the computer program logic is valid, if you assume a computer program to be only able to use addition and multiplication
+        the addition is the safe way to find the number. theoretically trying out different factors at random is also possible,
+        but the expected value of tries to find the number will be even higher than with addition
+        
+        to be precise: according to the prime number theorem, the chance of a random integer up to n being prime is 1 / ln(n). there
+        are about n / ln(n) prime numbers up to n, so the chance that you pick the right one is (1 / ln(n)) / (n / ln(n)) = ln(n) / n * ln(n) = 1 / n
+        so one needs 1 / (1 / n) = n trials to find one of the factors. since you need to pick log(log(n)) factors, you need in total n * log(log(n)) trials.
+        
+    --> maybe kolmogorov complexity can be an estimator for the trustworthiness of a website. just estimate the kolmogorov complexities of known
+    to be trustworthy websites and use them as a measure for trustworthiness. too low kolmogorov complexity could indicate that the website is
+    very simple in its algorithmic construction (ie not much computational effort). too large kolmogorov complexity could indicate that the content
+    is too random for something that is humanly produced.
+        
+        
+    
         
 
 '''
@@ -134,6 +179,11 @@ def normalize_hubs(nodes, sum_hubs):
     for node in nodes:
         node.hub /= sum_hubs 
 
+def get_combined_sorted_nodes(nodes):
+    sorted_nodes_combined = copy.copy(nodes)
+    sorted_nodes_combined.sort(key=sort_by_auth_and_hub)
+    return sorted_nodes_combined
+
 def get_sorted_nodes(nodes):
     
     sorted_nodes_auth = copy.copy(nodes)
@@ -144,6 +194,8 @@ def get_sorted_nodes(nodes):
     
     return sorted_nodes_auth, sorted_nodes_hub
 
+def sort_by_auth_and_hub(node):
+    return (node.auth + node.hub) / 2
 
 def sort_by_auth(node):
     return node.auth
@@ -170,7 +222,12 @@ def print_hubAuth_values(nodes):
 
 def print_parents_children(nodes):
     for n in nodes:
-        print("node ", n._id, "parents: ", [p._id for p in n.parents], ", children: ", [c._id for c in n.children], "edges: ", [(e, v) for e, v in n.edges.items()], "pub factors",  n.public_factors) 
+        print("node ", n._id, 
+              "parents: ", [p._id for p in n.parents],
+              ", children: ", [c._id for c in n.children], 
+              "edges: ", [(e, v) for e, v in n.edges.items()], 
+              "pub factors",  n.public_factors,
+              "priv factors", n.private_factors)
         
         
     print()
@@ -280,14 +337,14 @@ def get_root_set(nodes, query_factors):
     return [nodes[_id] for _id in id_set]
 
 
-def compute(nodes, query_factors, willingness_to_compute, false_factor_levels, edge_init):
+def compute(nodes, query_factors, willingness_to_compute, false_factor_values, edge_init):
     #this method should resemble the "additional" energy that a node decides to spend
     #on contributing to the network. for now (18.04) the additional computational work
     #is done through the calculation of the private_semantic_equivalence relative to the query.
     computed_trusts = []
     for n in nodes:
         if random.random() < willingness_to_compute:
-            computed_trusts.append(set_trust(n , query_factors, willingness_to_compute, false_factor_levels, edge_init))
+            computed_trusts.append(set_trust(n , query_factors, willingness_to_compute, false_factor_values, edge_init))
     
     if computed_trusts:
         #print("compo", computed_trusts, np.mean(computed_trusts))
@@ -298,33 +355,46 @@ def compute(nodes, query_factors, willingness_to_compute, false_factor_levels, e
             
 
 
-def set_trust(node, query_factors, willingness_to_compute, false_factor_levels, edge_init):
-    
+def set_trust(node, query_factors, willingness_to_compute, false_factor_values, edge_init):
     new_trust = edge_init  
     for c in node.children:
         #Note that the access to c's private factors can only be obtained through computation of the factors
        private_semantic_equivalence = compare_semantic_equivalence(query_factors, c.private_factors)
        public_semantic_equivalence = compare_semantic_equivalence(query_factors, c.public_factors)
-       false_factor_level = abs(public_semantic_equivalence - private_semantic_equivalence)
-       mean_false_factor_level = np.mean(false_factor_levels)
+       false_factor_value = abs(public_semantic_equivalence - private_semantic_equivalence)
+       mean_false_factor_value = np.mean(false_factor_values)
 
-       previous_trust = F.ilffd(node.edges[c._id])
-       trust_change = mean_false_factor_level - false_factor_level
-       new_trust = F.lffd(previous_trust + trust_change)
-
+       #the function transforms between trusts as belief between 0 and 1 and false_factor_values that can move in
+       #arbitrary directions and vice versa
+       current_false_factor_value = F.trustProbability_to_falseFactorValue(node.edges[c._id])
+       trust_value_change = mean_false_factor_value - false_factor_value
+       new_trust = F.falseFactorValue_to_trustProbability(current_false_factor_value + trust_value_change)
        node.edges[c._id] = new_trust
 
-       if false_factor_level > 0:
+       if false_factor_value > 0:
            G.reset_public_factors(nodes[c._id])
            
-       false_factor_levels.append(false_factor_level)
+       false_factor_values.append(false_factor_value)
        
     return new_trust
                
                
 
-def set_false_factors(nodes): 
+def set_false_factors(nodes, root_set): 
+    if not root_set:
+        return
+    root_set_IDs =  G.get_node_IDs(root_set)
+    ranking_positions = get_combined_sorted_nodes(root_set)
+    #print(" ranking pos", [n._id for n in ranking_positions])
+    ranking_positions.reverse()
+    ranking_values = dict()
+    for i, n in enumerate(ranking_positions):
+        ranking_values[n._id] = F.rankingPosition_to_rankingValue(i + 1, len(root_set))
+        #print("ranking values: ", n._id, ranking_values[n._id], i, n)  
+    avg_ranking_value = np.mean(list(ranking_values.values()))
+    
     for n in nodes:
+        set_false_factor_probability(n, root_set, root_set_IDs, avg_ranking_value, ranking_values)
         if random.random() < n.false_factor_probability:
             false_factors = prime_factors(random.randint(RANDINT_PRIMES_FLOOR, RANDINT_PRIMES_FLOOR + int(random.expovariate(1 / math.log(n.content)))))
             for false_factor in false_factors:
@@ -336,15 +406,21 @@ def set_false_factors(nodes):
 
     
                     
-def set_false_factor_probability(nodes, root_set):  
-    root_set_IDs =  G.get_node_IDs(root_set)
-    for n in nodes:
-        if n._id in root_set_IDs:
-            n.false_factor_probability = max(FALSE_FACTOR_FLOOR, F.inverse_false_factor_probability_function(n.false_factor_probability))
-        else:
-            n.false_factor_probability = min(FALSE_FACTOR_CEIL, F.false_factor_probability_function(n.false_factor_probability))
-         
+def set_false_factor_probability(node, root_set, root_set_IDs, avg_ranking_value, ranking_values):
     
+    if node._id in root_set_IDs:
+        ranking_value_step = avg_ranking_value - ranking_values[node._id]
+    else:
+        ranking_value_step = avg_ranking_value
+    
+    current_ranking_value = F.falseFactorProbability_to_rankingValue(node.false_factor_probability)
+    new_ranking_value = current_ranking_value + ranking_value_step
+    
+    #print("cur rank:", current_ranking_value, "new rank:", new_ranking_value, node.false_factor_probability)
+    node.false_factor_probability = F.rankingValue_to_falseFactorProbability(new_ranking_value)
+    
+    #print("cur rank:", current_ranking_value, "new rank:", new_ranking_value, node.false_factor_probability)
+    #print()
     
 def get_n_false_factors(nodes):
     return sum(abs(len(n.public_factors) - len(n.private_factors)) for n in nodes)
@@ -370,7 +446,7 @@ def HITS_hubAuth_reset(nodes):
     normalize_hubs(nodes, len(nodes))      
                        
        
-def HITS_init(nodes, content_max, edge_init, false_factor_levels):
+def HITS_init(nodes, content_max, edge_init, false_factor_values):
     
     HITS_hubAuth_reset(nodes)
     for n in nodes:
@@ -379,15 +455,15 @@ def HITS_init(nodes, content_max, edge_init, false_factor_levels):
             G.set_all_edge_weights(nodes, edge_init)
     
     #this is important for the np.mean in compute_semantic_equivalence to be not NaN at first
-    false_factor_levels.append(0)
+    false_factor_values.append(0)
  
     
 def HITS_iteration(nodes, n_search_queries, n_steps=5,
                    content_max=1000, query_factors_scaling=1,
                    willingness_to_compute=0.5, edge_init=0.5):
     
-    false_factor_levels = deque(maxlen=len(nodes))
-    HITS_init(nodes, content_max, edge_init, false_factor_levels)
+    false_factor_values = deque(maxlen=len(nodes))
+    HITS_init(nodes, content_max, edge_init, false_factor_values)
       
     order_similarities_rnd_auth = []
     order_similarities_private_auth = []
@@ -403,7 +479,7 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
         #print_parents_children(nodes)
         
         query_factors = get_query_factors(content_max, query_factors_scaling)
-        avg_computed_trust = compute(nodes, query_factors, willingness_to_compute, false_factor_levels, edge_init)
+        avg_computed_trust = compute(nodes, query_factors, willingness_to_compute, false_factor_values, edge_init)
 
         
         n_lost_edges = G.replace_parentless_nodes(nodes, content_max)
@@ -414,9 +490,6 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
         #print("n edges in the system AFTER: ", G.get_n_edges(nodes))
         
         
-        set_false_factors(nodes)
-        set_false_factor_probability(nodes, root_set)
-        #print("avg false factor probs:", G.get_avg_false_factor_probability(nodes))
         
 
   
@@ -424,11 +497,14 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
         for _ in range(n_steps):
             HITS_one_step(nodes, root_set)
             
+        sorted_nodes_auths, sorted_nodes_hubs = get_sorted_nodes(root_set)
+        #print_hubAuth_Ranking(sorted_nodes_auths, sorted_nodes_hubs)
+        set_false_factors(nodes, root_set) 
+        #print("avg false factor probs:", G.get_avg_false_factor_probability(nodes))
         
             
         private_ranking = get_ranking([(n._id, n.private_factors) for n in root_set], query_factors)
         public_ranking = get_ranking([(n._id, n.public_factors) for n in root_set], query_factors)
-        sorted_nodes_auths, sorted_nodes_hubs = get_sorted_nodes(root_set)
         sorted_nodes_auths_IDs = [n._id for n in sorted_nodes_auths]
         sorted_nodes_hubs_IDs = [n._id for n in sorted_nodes_hubs]
         avg_trusts.append(G.get_avg_trust(nodes))
@@ -458,10 +534,10 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
             print_hubAuth_values(root_set)
             print_parents_children(nodes)
             print_hubAuth_Ranking(sorted_nodes_auths, sorted_nodes_hubs)
-            print(np.mean(false_factor_levels))
+            print(np.mean(false_factor_values))
             print("avg trust", np.mean(avg_trusts))
             print("n parentless: ", G.get_n_parentless(nodes), "lost edges:", n_lost_edges, "n removed edges: ", n_removed_edges, "avg trust:" )
-
+            print("false factor probabilities: ", [n.false_factor_probability for n in nodes])
           
         '''print("query factors: ", query_factors)
         print("private: ", [(n._id, n.private_factors) for n in root_set])
@@ -512,7 +588,7 @@ if __name__ == '__main__':
     n_steps = 20
     content_max = 10**6
     query_factors_scaling = 3
-    willingness_to_compute = 0.2
+    willingness_to_compute = 0.5
     edge_init = 0.5
 
 

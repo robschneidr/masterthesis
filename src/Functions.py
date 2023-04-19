@@ -9,25 +9,44 @@ import math
 import numpy as np
 import matplotlib.pyplot as plt
 
-#inverse_logistic_false_factor_difference
-def ilffd(y):
-    return 0.5 - 2 * math.log(1 / y - 1)
-#logistic_false_factor_difference
-def lffd(x):
-    return 1 / (1 + math.exp(-0.5 * (x - 0.5)))
+INVERSE_EXP_CUTOFF = 10
+K_CUTOFF = 200
+LOG_CEIL = 0.999999
+LOG_FLOOR = 0.000001
 
 
-def false_factor_probability_function(x):
-    return 1 - (1 / math.exp(3 * x))
+# ranking value to false factor probability
+def rankingValue_to_falseFactorProbability(x):
+    return 1 / (1 + math.exp(-x))
 
-def inverse_false_factor_probability_function(y):
-    return -(1 / 3) * math.log(1 - y, math.e)    
+#false factor probability to ranking value
+def falseFactorProbability_to_rankingValue(y):
+    _y = min(LOG_CEIL, max(LOG_FLOOR, y))
+    return -math.log((1 / _y) - 1)
+    
+#this models the belief that the "first" site of google results is by far the most important
+#ranking position to relative ranking value
+def rankingPosition_to_rankingValue(x, root_set_size):
+    k = K_CUTOFF ** (1 / root_set_size) - 1
+    return 1 / math.pow(1 + k, x)
+
+
+#false factor value to trust probability
+def falseFactorValue_to_trustProbability(x):
+    return 1 / (1 + math.exp(-x))
+
+#trust probability to false factor value
+def trustProbability_to_falseFactorValue(y):
+    _y = min(LOG_CEIL, max(LOG_FLOOR, y))
+    return -math.log((1 / _y) - 1)
+
+  
 
 
 
 if __name__ == "__main__":
 
-    x = np.arange(-5, 5, 0.05)     
+    '''x = np.arange(-5, 5, 0.05)     
     #y = [false_factor_difference_function(_x) for _x in x]
     y = [lffd(_x) for _x in x]
     z = [ilffd(_z) for _z in y]
@@ -37,6 +56,37 @@ if __name__ == "__main__":
     plt.plot(x, y)
     #plt.plot(x, z)
     print([(a, b) for (a, b) in zip(y, z)])
-    plt.show()
+    plt.show()'''
+    
+    a = np.arange(1, 40)
+    b = [rankingPosition_to_rankingValue(_a, 39) for _a in a]
+    
+    print(b)
+    
+
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     
     
