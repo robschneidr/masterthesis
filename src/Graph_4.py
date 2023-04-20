@@ -27,7 +27,7 @@ class Node:
        self.content = 0
        self.private_factors = dict()
        self.public_factors = dict()
-       self.false_factor_probability = HITS.FALSE_FACTOR_FLOOR
+       self.false_factor_probability = HITS.UNCERTAIN_BELIEF
 
        
     def __hash__(self):

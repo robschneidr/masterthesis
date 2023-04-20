@@ -18,10 +18,9 @@ from collections import deque
 
 
 RANDINT_PRIMES_FLOOR = 2
-FALSE_FACTOR_FLOOR = 0.01
-FALSE_FACTOR_CEIL = 0.99
-PRIVATE = 0
-PUBLIC = 1
+UNCERTAIN_BELIEF = 0.5
+
+
 
 
 
@@ -29,14 +28,18 @@ PUBLIC = 1
 notes:
     
     
-    TODO: generate a graph that suits the idea of HITS, otherwise HITS will just produce results
-    as good as random when compared to the true ranking.
-    TODO: eliminate arbitrary learning rate. forgot the concept....
+    TODo: generate a graph that suits the idea of HITS, otherwise HITS will just produce results
+    as good as random when compared to the true ranking. 
+    DONE, graph is constructed according to semantic equivalence
     
-    TODO: Hyperparameter Elimination Paradigm
+    TODo: eliminate arbitrary learning rate. forgot the concept.... DONE through FUNCTIONS
     
-    TODO: make the graph dynamic again. make it possible for nodes to change their connection based on hub/auth values
-          
+    TODo: Hyperparameter Elimination Paradigm DONE except for wtc
+    
+    TODo: make the graph dynamic again. make it possible for nodes to change their connection based on hub/auth values
+    DONE      
+    
+    
     17.04. performing experiments with the graph creation process:
         what is the more probable way that websites connect? do they connect to other websites that they share
         semantic information with, or do they connect to websites that are entirely different than themselves?
@@ -81,19 +84,29 @@ notes:
     determine function hyperparameters. see implementation
     
     
-    TODO: refine the set false factor probability function. the problem right now is that at some point all the nodes
+    
+    
+    TODo: refine the set false factor probability function. the problem right now is that at some point all the nodes
     are in the root set, and no node has the need to set false factors. however, the ranking is quite large then and
     this is not good. better to set false factor probability based on the actual ranking, or 0 if it is not even included.
     
     ==> how do you turn the information about the relative position in a ranking into a useful information about how probable
-    it will be to add false factors
+    it will be to add false factors  
+    DONE trough the inverse exponential distribution of the root set results
     
-    TODO: investigate why the adding of global hyperparameters can not achieve an adequate structure change so no information
-    is lost between two program parts (or maybe it can?)
+    
+    
+    TODo: investigate why the adding of global hyperparameters can not achieve an adequate structure change so no information
+    is lost between two program parts (or maybe it can?).
+    DONE: information that travels between 2 structures will very likely be lost anyways. also with a function..
+    so, information may or may not be lost, independent of if you use "learning rate" or a function.
+    however, i think some things may be modelled far better with functions (less information loss)...
     
     ==> the logistic function can serve as a good way to model beliefs, because the function is steepest in both directions, 
     when no information is yet available. if more and more facts have been collected about certain beliefs the rate of change
     in both directions will become exponentially slower.
+    
+    
     
     
     19.04.
@@ -127,10 +140,47 @@ notes:
     to be trustworthy websites and use them as a measure for trustworthiness. too low kolmogorov complexity could indicate that the website is
     very simple in its algorithmic construction (ie not much computational effort). too large kolmogorov complexity could indicate that the content
     is too random for something that is humanly produced.
+    
+    
+    
+    
+    REMINDER: goal is to construct the graph, aka the structure, according to a semantic equivalence principle. then HITS
+    is "infused" with information about the semantic nature of objects through trust. the goal is to show that the information
+    flow does work and HITS rankings (maybe combinde auth/hub) converge to a ranking that is significantly better than random.
+    i dont think hits will ever fully converge to the ranking of private factors, since hits does still take the structure
+    of the connections into account.
+    and indeed, it seems the more specific the search query gets, the better are the results
+    example:
+        query factors:  {2: 2, 3: 1, 7: 1}
+        private vs auth 0.1356401384083045
+        public vs auth 0.1724567474048443
+        rnd vs auth 0.28705882352941176
+        
+    in other cases, hits performs even worse than random, as in some cases the number of links
+    does have a much larger infcluence than the semantic equality.
+    also interesting to observe is that both the hub and and authority rankings become almost
+    equal and far better than random for more specific queries
         
         
     
+    TODo: directly use normalized quantities for value_to_probability (check sheet)
+        DONE -> not a good idea because 1. it actually already is ranked according to HITS
+        and 2. it would not give crucially more emphasis on the first few search results.
+        the inverse exponential models the fact that only the first few search results
+        are acutally important. 
         
+        
+    TODO: implement willingness to compute as the inverse of false factor probability
+        not that this will be done in hits 5, because the downside is that it is not directly
+        possible anymore to globally steer willingness to compute and show the direct effects
+        of it.
+        however, it will be interesting to see how willingness to compute will develop in the
+        network.
+        
+    DONE -> HITS 5
+    
+    
+    TODO: think about if normalization is the right way to calculate hits values.
 
 '''
 
