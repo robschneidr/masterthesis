@@ -77,9 +77,9 @@ notes:
         proper hits calculation from the beginning
         
         
-    TODO: alter the root set selection to be more precise: rank nodes according to their equivalence
+    TODo: alter the root set selection to be more precise: rank nodes according to their equivalence
     points and then decide on a threshold, from where nodes below the threshold are not taken
-    into the root set.
+    into the root set. DONE in HITS4
     
     
     TODo: actualy implement get_private_ranking DONE
@@ -87,8 +87,8 @@ notes:
     TODo: generate a graph that suits the idea of HITS, otherwise HITS will just produce results
     as good as random when compared to the true ranking. DONE in HITS_4
     TODo: hub and auth values probably have to be reset after every search query. TRUE, DONE
-    TODO: check for part1 and part2 if subset edge trust should really deliver different results than edge trust
-    TODO: eliminate arbitrary learning rate. forgot the concept....
+    TODo: check for part1 and part2 if subset edge trust should really deliver different results than edge trust
+    TODo: eliminate arbitrary learning rate. forgot the concept.... DONE in HITS4
     
     NOTE: visualization is only possible of the private factors.. because the public factor objects get too large
     to be efficiently visualized.
@@ -447,7 +447,7 @@ def HITS_iteration(nodes, n_search_queries, root_set_size=-1, n_steps=5,
         
         query_factors = get_query_factors(content_max, query_factors_scaling)
         root_set = get_root_set(nodes, root_set_size, query_factors)
-        #vis.visualize_factordict(query_factors)
+        vis.visualize_factordict(query_factors)
         '''for n in root_set:
             vis.visualize_factordict(n.public_factors)'''
             

@@ -181,6 +181,8 @@ notes:
     
     
     TODO: think about if normalization is the right way to calculate hits values.
+        ->should the trust weighting be done directly at hub/auth calculation (as it is done now)
+        or is it better to calculate hub and auth, then normalize, then weigh by trust.
 
 '''
 

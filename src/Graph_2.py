@@ -154,6 +154,7 @@ def visualize(nodes):
     nxGraph = convert_nodes_to_networkx(nodes)
     nx.draw_networkx(nxGraph, with_labels=True)
     
+    
 def save_graph(graph, filename):
     with open("../data/graphs/" + filename + ".pkl", "wb") as f:
         pickle.dump(graph, f)

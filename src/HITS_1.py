@@ -501,7 +501,7 @@ if __name__ == '__main__':
     
     #base_nodes = G.create_random_weighted_directed_document_nodes(n_nodes, n_edges)
     base_nodes = G.load_graph("rnd_20n_60e_1")
-    #G.visualize(base_nodes)
+    G.visualize(base_nodes)
     print_parents_children(base_nodes)
     #G.save_graph(base_nodes, "rnd_20n_60e_1")
     
@@ -563,7 +563,7 @@ if __name__ == '__main__':
     sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted_nodeIDs_trusts = get_sorted_nodeIDs(params, sorted_nodes_auths, sorted_nodes_hubs, sorted_nodes_trusts)    
     
     #v.heatmap_auth_rankings(sorted_nodeIDs_auths, [param[name_id] for param in params])
-    #v.heatmap_hub_rankings(sorted_nodeIDs_hubs, [param[name_id] for param in params])
+    v.heatmap_hub_rankings(sorted_nodeIDs_hubs, [param[name_id] for param in params])
     #v.heatmap_adjacency_matrix(nodes)
     #v.heatmap_trusts(get_trust_values(unsorted_nodes[5:7]), [param[name_id] for param in params[5:7]])
     #v.heatmap_trusts(get_trust_values(unsorted_nodes), [param[name_id] for param in params])

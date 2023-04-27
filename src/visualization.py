@@ -193,7 +193,6 @@ def arrange_factordict_data(factordict):
     _1d = []
     while available_space > 0:
         rnd_float = 1 / random.random()
-        #find the minimum distance. thanks chatgpt
         closest = min(sorted_factors, key=lambda x: abs(x - rnd_float))
         for j in range(closest):
             _1d.append(1 / math.log(closest))
@@ -243,9 +242,9 @@ def heatmap_node_user_adjacency_matrix(nodes, users):
     
     
     # add labels and title to the plot
-    plt.xlabel('Nodes')
-    plt.ylabel('Users')
-    plt.title('Binary Adjacency Matrix of User-Node Connections')
+    plt.xlabel('Document Nodes')
+    plt.ylabel('User Nodes')
+    plt.title('Binary Adjacency Matrix of User-Document Connections')
     
     # display the plot
     plt.show()    
@@ -256,6 +255,8 @@ def draw_network_with_users(nodes, users):
     nxGraph = G.add_users_to_nxGraph(nodes, users)
     plt.title("User-Connected Webgraph with " + str(nxGraph.number_of_nodes()) + " Nodes and " + str(nxGraph.number_of_edges()) + " Edges")
     nx.draw_networkx(nxGraph, with_labels=True)
+    plt.axis('off')
+    plt.show()
     
 
 def plot_avg_vs_user_trusts(user_trusts):
@@ -321,7 +322,7 @@ def heatmap_adjacency_matrix(nodes):
 def heatmap_auth_rankings(auths, names):
     plt.rcParams['figure.dpi'] = 600
     # create a heatmap using Seaborn
-    ax = sns.heatmap(auths, annot=True, cbar_kws={'label': 'Node IDs'})
+    ax = sns.heatmap(auths, annot=True, cbar_kws={'ticks':np.arange(0, len(auths[0]), 1),'label': 'Node IDs'})
     
     ax.set_yticklabels(names, rotation=0)
     
@@ -336,7 +337,7 @@ def heatmap_auth_rankings(auths, names):
 def heatmap_hub_rankings(hubs, names):
     plt.rcParams['figure.dpi'] = 600
     # create a heatmap using Seaborn
-    ax = sns.heatmap(hubs, annot=True, cbar_kws={'label': 'Node IDs'})
+    ax = sns.heatmap(hubs, annot=True, cbar_kws={'ticks':np.arange(0, len(hubs[0]), 1),'label': 'Node IDs'})
     
     ax.set_yticklabels(names, rotation=0)
     
