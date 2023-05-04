@@ -15,6 +15,68 @@ import random
 import copy
 import math
 
+
+def plot_trust_wtc_ffp(trusts, wtcs, ffps):
+    avg_trusts = []
+    avg_wtcs = []
+    avg_ffps = []
+    size = len(trusts)
+    
+
+    
+    step_size = 20
+    for i in range(0, size - step_size - 1, step_size):
+        avg_trusts.append(np.mean(trusts[i:i + step_size]))
+        avg_wtcs.append(np.mean(wtcs[i:i + step_size]))
+        avg_ffps.append(np.mean(ffps[i:i + step_size]))
+    plt.rcParams['figure.dpi'] = 600
+    # create the line plot
+    #x = np.arange(len(all_parentless))
+    x = np.arange(len(avg_trusts))
+
+    sns.regplot(x=x, y=avg_trusts, label="Trust", scatter=True)
+    sns.regplot(x=x, y=avg_wtcs, label="WTC", scatter=True)
+    sns.regplot(x=x, y=avg_ffps, label="FFP", scatter=True)
+    
+    # set the plot title and axes labels
+    plt.title("Dynamics of Trust, WTC and False Factor Probability")
+    plt.xlabel("Iterations")
+    plt.ylabel("Average Quantity")
+    plt.legend()
+    # show the plot
+    plt.show()
+
+def plot_parentless_and_removed_edges(all_parentless, all_removed_edges):
+    
+    avg_parent = []
+    avg_edge = []
+    size = len(all_parentless)
+
+    
+    step_size = 50
+    for i in range(0, size - step_size - 1, step_size):
+        avg_parent.append(np.mean(all_parentless[i:i + step_size]))
+        avg_edge.append(np.mean(all_removed_edges[i:i + step_size]))
+    plt.rcParams['figure.dpi'] = 600
+    # create the line plot
+    #x = np.arange(len(all_parentless))
+    x = np.arange(len(avg_parent))
+
+    sns.regplot(x=x, y=avg_parent, label="Parentless Nodes", scatter=True)
+    sns.regplot(x=x, y=avg_edge, label="Untrustworthy Edges", scatter=True)
+    
+    # set the plot title and axes labels
+    plt.title("Dynamics of the Document Nodes")
+    plt.xlabel("Iterations")
+    plt.ylabel("Quantity")
+    plt.legend()
+    
+    # show the plot
+    plt.show()
+    
+    
+    
+
 def plot_false_factors_and_wtc(n_false_factors, wtcs):
     plt.rcParams['figure.dpi'] = 600
     sns.regplot(x=wtcs[20:], y=n_false_factors[20:])
@@ -73,6 +135,7 @@ def plot_avg_false_factor_probabilities(avg_ffps):
 
 def plot_avg_trusts(avg_trusts):
     plt.rcParams['figure.dpi'] = 600
+    #sns.set_style("whitegrid")
     sns.lineplot(x=np.arange(len(avg_trusts)), y=avg_trusts)
     plt.xlabel("Iterations")
     plt.ylabel("Average Trustworthiness")
@@ -176,7 +239,6 @@ def plot_query_and_root_set(_query_factors, _root_set, title, anti_root_set, mod
 
 
 def arrange_factordict_data(factordict):
-    print("ara", factordict)
     content = 1
     for factor, amount in factordict.items():
         content *= (factor ** amount)

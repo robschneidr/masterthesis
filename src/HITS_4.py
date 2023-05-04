@@ -522,6 +522,8 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
     order_similarities_public_auth = []
     avg_false_factor_probabilities = []
     avg_trusts = []
+    all_parentless = []
+    all_removed_edges = []
     
     
     
@@ -572,6 +574,9 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
             order_similarities_private_auth.append(order_similarity_private_auth)
             order_similarities_public_auth.append(order_similarity_public_auth)
             
+            
+            
+            
             if nth_query % 50 == 0:
                 print("query factors: ", query_factors)
                 print("private vs auth", order_similarity_private_auth)
@@ -582,13 +587,17 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
                 print("hits auth: ", sorted_nodes_auths_IDs)
                 print("hits hubs: ", sorted_nodes_hubs_IDs)
         
+        all_parentless.append(G.get_n_parentless(nodes))
+        all_removed_edges.append(n_removed_edges)
+        
+        
         if nth_query % 50 == 0:
             print_hubAuth_values(root_set)
             print_parents_children(nodes)
             print_hubAuth_Ranking(sorted_nodes_auths, sorted_nodes_hubs)
             print(np.mean(false_factor_values))
             print("avg trust", np.mean(avg_trusts))
-            print("n parentless: ", G.get_n_parentless(nodes), "lost edges:", n_lost_edges, "n removed edges: ", n_removed_edges, "avg trust:" )
+            print("n parentless: ", G.get_n_parentless(nodes), "lost edges:", n_lost_edges, "n removed edges: ", n_removed_edges )
             print("false factor probabilities: ", [n.false_factor_probability for n in nodes])
           
         '''print("query factors: ", query_factors)
@@ -600,10 +609,10 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
         print("public ranking: ", public_ranking)
         print()'''
 
-    
-    #vis.plot_order_similarities(order_similarities_rnd_auth, order_similarities_private_auth, order_similarities_public_auth)
-    #vis.plot_avg_trusts(avg_trusts)
-    #vis.plot_avg_false_factor_probabilities(avg_false_factor_probabilities)
+    vis.plot_parentless_and_removed_edges(all_parentless, all_removed_edges)
+    vis.plot_order_similarities(order_similarities_rnd_auth, order_similarities_private_auth, order_similarities_public_auth)
+    vis.plot_avg_trusts(avg_trusts)
+    vis.plot_avg_false_factor_probabilities(avg_false_factor_probabilities)
     return nodes
         
         
@@ -636,7 +645,7 @@ if __name__ == '__main__':
     n_nodes = 100
     n_edges = 400
 
-    n_search_queries = 3000
+    n_search_queries = 10000
     n_steps = 20
     content_max = 10**6
     query_factors_scaling = 3

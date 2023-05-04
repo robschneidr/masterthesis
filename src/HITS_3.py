@@ -442,12 +442,14 @@ def HITS_iteration(nodes, n_search_queries, root_set_size=-1, n_steps=5,
     
     
     for nth_query in range(n_search_queries):
+        if nth_query % 50 == 0:
+            print(nth_query)
         
         wtcs.append(willingness_to_compute)
         
         query_factors = get_query_factors(content_max, query_factors_scaling)
         root_set = get_root_set(nodes, root_set_size, query_factors)
-        vis.visualize_factordict(query_factors)
+        #vis.visualize_factordict(query_factors)
         '''for n in root_set:
             vis.visualize_factordict(n.public_factors)'''
             
@@ -511,8 +513,8 @@ def HITS_iteration(nodes, n_search_queries, root_set_size=-1, n_steps=5,
     print([n.false_factor_probability for n in nodes])
     print_parents_children(nodes)
     print("avg trust: ", G.get_avg_trust(nodes))
-    vis.plot_false_factors_and_wtc(n_false_factors, wtcs)
-    #vis.plot_avg_trusts(avg_trusts)
+    #vis.plot_false_factors_and_wtc(n_false_factors, wtcs)
+    vis.plot_avg_trusts(avg_trusts)
     #vis.plot_order_similarities(order_similarities_rnd_auth, order_similarities_private_auth, order_similarities_public_auth)
     
     return nodes
@@ -560,7 +562,7 @@ if __name__ == '__main__':
     n_nodes = 100
     n_edges = 400
     n_users = n_nodes
-    n_search_queries = 700
+    n_search_queries = 2500
     root_set_size = 5
     std_learning_rate = 0.1
     edge_init = 1.0

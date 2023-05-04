@@ -14,6 +14,7 @@ import matplotlib.pyplot as plt
 import math
 import seaborn as sns
 from collections import deque
+import pandas as pd
 
 def mean_nodes_order_similarity(nodeIDs_A, nodeIDs_B):
     
@@ -85,8 +86,24 @@ def plot_equivalence_points_distribution():
 
 if __name__ == "__main__":
     
+
+    # create some sample time series data
+    data = pd.Series(data=np.random.randn(2500), index=pd.date_range(start='2022-01-01', periods=2500, freq='D'))
     
-    print(np.mean([]))
+    # create the line plot with markers
+    fig, ax = plt.subplots(figsize=(10, 6))
+    ax.plot(data.index, data.values, linewidth=1, color='blue', marker='o', markersize=3)
+    
+    # set the plot title and axes labels
+    ax.set_title('Time Series Data')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Value')
+    
+    # rotate x-axis labels for better visibility
+    fig.autofmt_xdate()
+    
+    # show the plot
+    plt.show()
     
     
 
