@@ -10,7 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 INVERSE_EXP_CUTOFF = 10
-K_CUTOFF = 200
+K_CUTOFF = 20
 LOG_CEIL = 0.999999
 LOG_FLOOR = 0.000001
 
@@ -28,7 +28,8 @@ def falseFactorProbability_to_rankingValue(y):
 #ranking position to relative ranking value
 def rankingPosition_to_rankingValue(x, root_set_size):
     k = K_CUTOFF ** (1 / root_set_size) - 1
-    return 1 / math.pow(1 + k, x)
+    #return 1 / math.pow(1 + k, x)
+    return 1 / math.pow(1 + 0.01, x)
 
 
 #false factor value to trust probability

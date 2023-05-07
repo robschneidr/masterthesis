@@ -16,6 +16,61 @@ import copy
 import math
 
 
+def plot_FFP_distribution2(ffps):
+    plt.rcParams['figure.dpi'] = 600
+    
+    # Create a list of 100 random numbers between 0 and 1
+    data = ffps
+    mean = np.mean(ffps)
+    var = np.var(data)
+    
+    ax = sns.histplot(data, bins=20, kde=True)
+    
+    # Set the plot title and axis labels
+    plt.title("FFP Distribution")
+
+    plt.xlabel('FFP')
+    plt.ylabel("Number of Nodes")
+    custom_label_1 = "Mean = " + str(round(mean, 2))
+    custom_label_2 = "Variance = " + str(round(var, 2))
+    
+    ax.text(0.3, 0.9, custom_label_1, transform=ax.transAxes, fontsize=12, color='black')
+    ax.text(0.3, 0.85, custom_label_2, transform=ax.transAxes, fontsize=12, color='black')
+
+    
+    # Show the plot
+    plt.show()
+
+def plot_FFP_distribution(ffps):
+    plt.rcParams['figure.dpi'] = 600
+    data = ffps
+    mean = np.mean(ffps)
+    var = np.var(data)
+    
+    print("data: ", data)
+    # Categorize the data into three categories
+    less_than_001 = [d for d in data if d < 0.01]
+    between_001_and_099 = [d for d in data if (d >= 0.01 and d <=0.99)]
+    greater_than_099 = [d for d in data if d > 0.99]
+    
+    # Create a list of the categories and their counts
+    categories = ["FFP < 0.01", "0.01 <= FFP <= 0.99", "FFP > 0.99"]
+    values = [len(less_than_001), len(between_001_and_099), len(greater_than_099)]
+    data_dict = {"Category": categories, "Count": values}
+    
+    # Create a bar plot using Seaborn
+    sns.barplot(x="Category", y="Count", data=data_dict)
+    
+    plt.ylabel("Number of Nodes")
+    # Set the plot title
+    plt.title("FFP Distribution, Mean = " + str(round(mean, 2)) + ", Variance = " + str(round(var, 2)))
+    
+    # Show the plot
+    plt.show()
+
+
+
+
 def plot_trust_wtc_ffp(trusts, wtcs, ffps):
     avg_trusts = []
     avg_wtcs = []
@@ -414,20 +469,7 @@ def heatmap_hub_rankings(hubs, names):
     
 if __name__ == "__main__":
     
-    fd = {2:2, 5:3, 3:4}
-    fd1 = {2:3, 3:1, 5:1}
-    fd2 = {2:1, 7:1, 13:1, 27:1}
-    fd3 = {13: 1}
-    
-    print(fd)
-    
-    #visualize_factordict(fd)
-    visualize_factordict(fd1)
-    #visualize_factordict(fd2)
-
-    visualize_factordict(H.prime_factors_to_dict(H.prime_factors(random.randint(2, 100000))))
-    visualize_factordict(H.prime_factors_to_dict(H.prime_factors(random.randint(2, 100000))))
-    visualize_factordict(H.prime_factors_to_dict(H.prime_factors(random.randint(2, 100000))))
+    plot_FFP_distribution([0.01, 0.5, 0.39, 0.999])
 
     
     

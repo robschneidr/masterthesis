@@ -471,7 +471,7 @@ def set_false_factor_probability(node, root_set, root_set_IDs, avg_ranking_value
     
     #print("cur rank:", current_ranking_value, "new rank:", new_ranking_value, node.false_factor_probability)
     node.false_factor_probability = F.rankingValue_to_falseFactorProbability(new_ranking_value)
-    node.willingness_to_compute = max(0.7, 1 - node.false_factor_probability)
+    node.willingness_to_compute = max(0, 1 - node.false_factor_probability)
     #node.willingness_to_compute = 1 - node.false_factor_probability
     
     #print("cur rank:", current_ranking_value, "new rank:", new_ranking_value, node.false_factor_probability)
@@ -608,7 +608,9 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
         print("public ranking: ", public_ranking)
         print()'''
 
-    vis.plot_trust_wtc_ffp(trusts, wtcs, ffps)
+    vis.plot_FFP_distribution2([n.false_factor_probability for n in nodes])
+    #vis.plot_FFP_distribution([n.false_factor_probability for n in nodes])    
+    #vis.plot_trust_wtc_ffp(trusts, wtcs, ffps)
     #vis.plot_order_similarities(order_similarities_rnd_auth, order_similarities_private_auth, order_similarities_public_auth)
     #vis.plot_avg_trusts(avg_trusts)
     #vis.plot_avg_false_factor_probabilities(avg_false_factor_probabilities)
