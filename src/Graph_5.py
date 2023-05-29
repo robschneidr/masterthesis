@@ -75,6 +75,18 @@ def get_avg_wtc(nodes):
 def get_avg_false_factor_probability(nodes):
     return sum(n.false_factor_probability for n in nodes) / len(nodes)
 
+def get_trustworthiness(nodes, n):
+    cumulative_trust = 0
+    count = 0
+    for _n in nodes:
+        if n._id in _n.edges.keys():
+            cumulative_trust += _n.edges[n._id]
+            count += 1
+    if count > 0:
+        return cumulative_trust / count
+        
+    return 0.5
+
 def get_avg_trust(nodes, edge_init=0.5):
     cusum = 0.
     count = 0

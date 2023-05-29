@@ -321,6 +321,12 @@ def prime_factors_to_dict(factors, dict_to_be_extended=None):
             factor_counts[factor] = 1
     return factor_counts
 
+def dict_factors_to_list(factors):
+    factors_list = []
+    for factor, amount in factors.items():
+        factors_list.extend([factor for _ in range(amount)])
+    return factors_list
+
 def compare_semantic_equivalence(factorsA, factorsB):
     
     
@@ -340,6 +346,23 @@ def compare_semantic_equivalence(factorsA, factorsB):
     
     #print("eq pen", equivalence_points * penalty_for_large_prime_factors)
     return equivalence_points * penalty_for_large_prime_factors
+
+
+def get_kolmogorov_compression_ratio(factors_list):
+    
+    n_steps = factors_list[0]
+    cumulative_number = n_steps
+
+    for f in factors_list[1:]:
+        n_steps += math.ceil(math.log2(cumulative_number)) * math.ceil(math.log2(f))
+        cumulative_number *= f
+        
+    return (math.log2(cumulative_number))/n_steps, n_steps, cumulative_number
+        
+            
+        
+            
+    
 
 
 
@@ -471,7 +494,7 @@ def set_false_factor_probability(node, root_set, root_set_IDs, avg_ranking_value
     
     #print("cur rank:", current_ranking_value, "new rank:", new_ranking_value, node.false_factor_probability)
     node.false_factor_probability = F.rankingValue_to_falseFactorProbability(new_ranking_value)
-    node.willingness_to_compute = max(0, 1 - node.false_factor_probability)
+    node.willingness_to_compute = max(1, 1 - node.false_factor_probability)
     #node.willingness_to_compute = 1 - node.false_factor_probability
     
     #print("cur rank:", current_ranking_value, "new rank:", new_ranking_value, node.false_factor_probability)
@@ -526,6 +549,8 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
     ffps = []
     trusts = []
     wtcs = []
+    avg_false_factor_probabilities = []
+    avg_trusts = []
     
     
     
@@ -566,6 +591,8 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
         trusts.append(G.get_avg_trust(nodes))
         ffps.append(G.get_avg_false_factor_probability(nodes))
         wtcs.append(G.get_avg_wtc(nodes))
+        avg_trusts.append(G.get_avg_trust(nodes))
+        avg_false_factor_probabilities.append(G.get_avg_false_factor_probability(nodes))
         
         if len(private_ranking) > 0:
             shuffled_nodes = copy.copy(private_ranking)
@@ -588,16 +615,16 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
                 print("hits hubs: ", sorted_nodes_hubs_IDs)
         
         if nth_query % 50 == 0:
-            print_hubAuth_values(root_set)
-            print_parents_children(nodes)
+            #print_hubAuth_values(root_set)
+            #print_parents_children(nodes)
             print_hubAuth_Ranking(sorted_nodes_auths, sorted_nodes_hubs)
             print(np.mean(false_factor_values))
             print("avg trust", np.mean(trusts))
             print("avg wtc: ", np.mean([n.willingness_to_compute for n in nodes]))
             print("avg ffps: ", np.mean([n.false_factor_probability for n in nodes]))
             
-            print("n parentless: ", G.get_n_parentless(nodes), "lost edges:", n_lost_edges, "n removed edges: ", n_removed_edges, "avg trust:" )
-            print("false factor probabilities: ", [n.false_factor_probability for n in nodes])
+            #print("n parentless: ", G.get_n_parentless(nodes), "lost edges:", n_lost_edges, "n removed edges: ", n_removed_edges, "avg trust:" )
+            #print("false factor probabilities: ", [n.false_factor_probability for n in nodes])
           
         '''print("query factors: ", query_factors)
         print("private: ", [(n._id, n.private_factors) for n in root_set])
@@ -608,12 +635,21 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
         print("public ranking: ", public_ranking)
         print()'''
 
+    for n in nodes:
+        compression_ratio, n_steps, cumulative_number = get_kolmogorov_compression_ratio(dict_factors_to_list(n.private_factors))
+        compression_ratio_public, n_steps_public, cumulative_number_public = get_kolmogorov_compression_ratio(dict_factors_to_list(n.public_factors))
+        print("node: ", n._id, "ffp: ", n.false_factor_probability, "trustworthiness: ", G.get_trustworthiness(nodes, n))
+        print(compression_ratio, n_steps, cumulative_number)
+        #print(compression_ratio_public, n_steps_public, cumulative_number_public)
+        print()
+    
+    vis.plot_estimated_kolmogorov(nodes)
     vis.plot_FFP_distribution2([n.false_factor_probability for n in nodes])
-    #vis.plot_FFP_distribution([n.false_factor_probability for n in nodes])    
-    #vis.plot_trust_wtc_ffp(trusts, wtcs, ffps)
-    #vis.plot_order_similarities(order_similarities_rnd_auth, order_similarities_private_auth, order_similarities_public_auth)
-    #vis.plot_avg_trusts(avg_trusts)
-    #vis.plot_avg_false_factor_probabilities(avg_false_factor_probabilities)
+    vis.plot_FFP_distribution([n.false_factor_probability for n in nodes])    
+    vis.plot_trust_wtc_ffp(trusts, wtcs, ffps)
+    vis.plot_order_similarities(order_similarities_rnd_auth, order_similarities_private_auth, order_similarities_public_auth)
+    vis.plot_avg_trusts(avg_trusts)
+    vis.plot_avg_false_factor_probabilities(avg_false_factor_probabilities)
     return nodes
         
         
@@ -627,9 +663,14 @@ def HITS_one_step(all_nodes, subset_nodes):
     nodes_old = copy.deepcopy(all_nodes)
             
     for node in subset_nodes:
-        node.auth = sum(nodes_old[p._id].hub * nodes_old[p._id].edges.get(node._id) for p in node.parents)
-        node.hub = sum(nodes_old[c._id].auth * nodes_old[node._id].edges.get(c._id) for c in node.children)
-
+        
+        #TODO turn back to trust inclusion again
+        #node.auth = sum(nodes_old[p._id].hub * nodes_old[p._id].edges.get(node._id) for p in node.parents)
+        #node.hub = sum(nodes_old[c._id].auth * nodes_old[node._id].edges.get(c._id) for c in node.children)
+        
+        node.auth = sum(nodes_old[p._id].hub for p in node.parents)
+        node.hub = sum(nodes_old[c._id].auth for c in node.children)
+        
     normalize_auths(subset_nodes, sum(n.auth for n in all_nodes))
     normalize_hubs(subset_nodes, sum(n.hub for n in all_nodes))
     
@@ -646,7 +687,7 @@ if __name__ == '__main__':
     n_nodes = 100
     n_edges = 400
 
-    n_search_queries = 1260
+    n_search_queries = 2500
     n_steps = 20
     content_max = 10**6
     query_factors_scaling = 3
@@ -674,7 +715,7 @@ if __name__ == '__main__':
                    edge_init)
         
         
-    #print_parents_children(nodes)
+    print_parents_children(nodes)
 
     
      

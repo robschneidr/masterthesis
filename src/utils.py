@@ -8,13 +8,14 @@ Created on Fri Feb 24 18:04:28 2023
 
 import numpy as np
 import random
-import Graph_3 as G
-import HITS_3 as H
+import Graph_5 as G
+import HITS_5 as H
 import matplotlib.pyplot as plt
 import math
 import seaborn as sns
 from collections import deque
 import pandas as pd
+from scipy.stats import norm
 
 def mean_nodes_order_similarity(nodeIDs_A, nodeIDs_B):
     
@@ -87,23 +88,41 @@ def plot_equivalence_points_distribution():
 if __name__ == "__main__":
     
 
-    # create some sample time series data
-    data = pd.Series(data=np.random.randn(2500), index=pd.date_range(start='2022-01-01', periods=2500, freq='D'))
+  
+
+    # Generate example datasets
+    data1 = np.random.normal(0, 1, 1000)
+    data2 = np.random.normal(2, 0.5, 1000)
+    data3 = np.random.normal(-2, 1.5, 1000)
     
-    # create the line plot with markers
-    fig, ax = plt.subplots(figsize=(10, 6))
-    ax.plot(data.index, data.values, linewidth=1, color='blue', marker='o', markersize=3)
+    # Fit a normal distribution to each dataset
+    params1 = norm.fit(data1)
+    params2 = norm.fit(data2)
+    params3 = norm.fit(data3)
     
-    # set the plot title and axes labels
-    ax.set_title('Time Series Data')
-    ax.set_xlabel('Date')
-    ax.set_ylabel('Value')
+    # Plot histograms for each dataset
+    plt.hist(data1, bins=30, density=True, alpha=0.5, label='Dataset 1')
+    plt.hist(data2, bins=30, density=True, alpha=0.5, label='Dataset 2')
+    plt.hist(data3, bins=30, density=True, alpha=0.5, label='Dataset 3')
     
-    # rotate x-axis labels for better visibility
-    fig.autofmt_xdate()
+    # Plot estimated normal distribution curves
+    x = np.linspace(-6, 6, 1000)
+    pdf1 = norm.pdf(x, params1[0], params1[1])
+    pdf2 = norm.pdf(x, params2[0], params2[1])
+    pdf3 = norm.pdf(x, params3[0], params3[1])
     
-    # show the plot
+    plt.plot(x, pdf1, color='red', linewidth=2, label='Normal Distribution (Dataset 1)')
+    plt.plot(x, pdf2, color='blue', linewidth=2, label='Normal Distribution (Dataset 2)')
+    plt.plot(x, pdf3, color='green', linewidth=2, label='Normal Distribution (Dataset 3)')
+    
+    # Add legend and labels
+    plt.legend()
+    plt.xlabel('Value')
+    plt.ylabel('Probability Density')
+    
+    # Display the plot
     plt.show()
+
     
     
 

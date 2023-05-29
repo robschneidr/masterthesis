@@ -1,0 +1,12 @@
+Hypothesis 1 (H1) Faithfully created objects are neither algorithmically sim-
+ple, nor random. They share a similar style that can be measured as a compres-
+sion ratio estimated with Kolmogorov complexity. Large deviations from this
+style indicate potential manipulation.
+
+Hypothesis 2 (H2) Combination of different sources of information in mul-
+tiple, independent methods is preferable to the combination of different sources
+in a single, dependent method.
+
+Hypothesis 3 (H3) Trustworthiness is a direct result of and proportional to the computational resources spent (WTC) on detecting deceit in the network. 
+
+Hypothesis 4 (H4) Including trust into HITS' ranking mechanism causes the creation and persistence of trustworthy objects in the network.

@@ -524,10 +524,15 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
     avg_trusts = []
     all_parentless = []
     all_removed_edges = []
+    wtcs = []
+    
+    willingness_to_compute = 0.0
     
     
     
     for nth_query in range(n_search_queries):
+        
+        
         
         #print("nth query: ", nth_query)
         #print_parents_children(nodes)
@@ -562,7 +567,11 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
         sorted_nodes_auths_IDs = [n._id for n in sorted_nodes_auths]
         sorted_nodes_hubs_IDs = [n._id for n in sorted_nodes_hubs]
         avg_trusts.append(G.get_avg_trust(nodes))
+        wtcs.append(willingness_to_compute)
         avg_false_factor_probabilities.append(G.get_avg_false_factor_probability(nodes))
+        
+        #TODO: remove wtc again
+        willingness_to_compute = min(1, willingness_to_compute + 0.0002)
         
         if len(private_ranking) > 0:
             shuffled_nodes = copy.copy(private_ranking)
@@ -609,10 +618,12 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
         print("public ranking: ", public_ranking)
         print()'''
 
-    vis.plot_parentless_and_removed_edges(all_parentless, all_removed_edges)
-    vis.plot_order_similarities(order_similarities_rnd_auth, order_similarities_private_auth, order_similarities_public_auth)
-    vis.plot_avg_trusts(avg_trusts)
-    vis.plot_avg_false_factor_probabilities(avg_false_factor_probabilities)
+    vis.plot_parentless_and_removed_and_wtc(all_parentless, all_removed_edges, wtcs)
+    #vis.plot_avg_trust_and_wtc(avg_trusts, wtcs)
+    #vis.plot_parentless_and_removed_edges(all_parentless, all_removed_edges)
+    #vis.plot_order_similarities(order_similarities_rnd_auth, order_similarities_private_auth, order_similarities_public_auth)
+    #vis.plot_avg_trusts(avg_trusts)
+    #vis.plot_avg_false_factor_probabilities(avg_false_factor_probabilities)
     return nodes
         
         
@@ -626,8 +637,11 @@ def HITS_one_step(all_nodes, subset_nodes):
     nodes_old = copy.deepcopy(all_nodes)
             
     for node in subset_nodes:
+        
+
         node.auth = sum(nodes_old[p._id].hub * nodes_old[p._id].edges.get(node._id) for p in node.parents)
         node.hub = sum(nodes_old[c._id].auth * nodes_old[node._id].edges.get(c._id) for c in node.children)
+        
 
     normalize_auths(subset_nodes, sum(n.auth for n in all_nodes))
     normalize_hubs(subset_nodes, sum(n.hub for n in all_nodes))
@@ -645,7 +659,7 @@ if __name__ == '__main__':
     n_nodes = 100
     n_edges = 400
 
-    n_search_queries = 10000
+    n_search_queries = 2500
     n_steps = 20
     content_max = 10**6
     query_factors_scaling = 3

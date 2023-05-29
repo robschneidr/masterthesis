@@ -514,7 +514,8 @@ def HITS_iteration(nodes, n_search_queries, root_set_size=-1, n_steps=5,
     print_parents_children(nodes)
     print("avg trust: ", G.get_avg_trust(nodes))
     #vis.plot_false_factors_and_wtc(n_false_factors, wtcs)
-    vis.plot_avg_trusts(avg_trusts)
+    vis.plot_avg_trust_and_wtc(avg_trusts, wtcs)
+    #vis.plot_avg_trusts(avg_trusts)
     #vis.plot_order_similarities(order_similarities_rnd_auth, order_similarities_private_auth, order_similarities_public_auth)
     
     return nodes
@@ -562,7 +563,7 @@ if __name__ == '__main__':
     n_nodes = 100
     n_edges = 400
     n_users = n_nodes
-    n_search_queries = 2500
+    n_search_queries = 100
     root_set_size = 5
     std_learning_rate = 0.1
     edge_init = 1.0

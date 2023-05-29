@@ -346,10 +346,10 @@ if __name__ == '__main__':
         sorted_nodes_auth, sorted_nodes_hub = get_sorted_nodes(nodes)
         sorted_nodes_auths.append(sorted_nodes_auth)
         sorted_nodes_hubs.append(sorted_nodes_hub)
-        #v.plot_avg_vs_user_trusts(user_trusts)
+        v.plot_avg_vs_user_trusts(user_trusts)
         #v.draw_network_with_users(nodes, users)
         #print(get_user_connection_count(nodes, users))
-        v.heatmap_node_user_adjacency_matrix(nodes, users)
+        #v.heatmap_node_user_adjacency_matrix(nodes, users)
         #v.heatmap_adjacency_matrix(nodes)
     
     sorted_nodeIDs_auths, sorted_nodeIDs_hubs = get_sorted_nodeIDs(params, sorted_nodes_auths, sorted_nodes_hubs)    

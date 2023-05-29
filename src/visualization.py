@@ -9,11 +9,60 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import numpy as np
 import Graph_2 as G
-import HITS_3 as H
+import HITS_3 as H3
+import HITS_5 as H
 import networkx as nx
 import random
 import copy
 import math
+from scipy.stats import norm
+from scipy.stats import lognorm
+from scipy.stats import skewnorm
+
+def plot_estimated_kolmogorov(nodes):
+    
+    
+    # Generate example datasets
+    data1 = [H.get_kolmogorov_compression_ratio(H.dict_factors_to_list(n.private_factors))[1] for n in nodes if n.false_factor_probability < 0.01]
+    data2 = [H.get_kolmogorov_compression_ratio(H.dict_factors_to_list(n.private_factors))[1] for n in nodes if (n.false_factor_probability >= 0.01 and n.false_factor_probability <= 0.98 and H.get_kolmogorov_compression_ratio(H.dict_factors_to_list(n.private_factors))[1] < 300)]
+    data3 = [H.get_kolmogorov_compression_ratio(H.dict_factors_to_list(n.private_factors))[1] for n in nodes if (n.false_factor_probability > 0.98 and H.get_kolmogorov_compression_ratio(H.dict_factors_to_list(n.private_factors))[1] < 300)]
+    
+    
+    
+    print("d", data1, data2, data3)
+    # Fit a normal distribution to each dataset
+    params1 = norm.fit(data1)
+    params2 = norm.fit(data2)
+    params3 = norm.fit(data3)
+    
+    print("p", params1, params2, params3)
+    
+    # Plot histograms for each dataset
+    #plt.hist(data1, density=True, alpha=0.5, label='Dataset 1')
+    #plt.hist(data2, density=True, alpha=0.5, label='Dataset 2')
+    #plt.hist(data3, density=True, alpha=0.5, label='Dataset 3')
+    
+    # Plot estimated normal distribution curves
+    x = np.linspace(0, 200, 1000)
+    
+    pdf1 = skewnorm.pdf(x, params1[0], params1[1])
+    pdf2 = skewnorm.pdf(x, params2[0], params2[1])
+    pdf3 = skewnorm.pdf(x, params3[0], params3[1])
+    
+    
+    
+    
+    plt.plot(x, pdf1, color='red', linewidth=2, label='FFP < 0.01')
+    plt.plot(x, pdf2, color='blue', linewidth=2, label='0.01 <= FFP <= 0.98')
+    plt.plot(x, pdf3, color='green', linewidth=2, label='FFP > 0.98')
+    
+    # Add legend and labels
+    plt.legend()
+    plt.xlabel('Estimation of Kolmogorov Complexity')
+    plt.ylabel('Probability Density')
+    
+    # Display the plot
+    plt.show()
 
 
 def plot_FFP_distribution2(ffps):
@@ -129,6 +178,40 @@ def plot_parentless_and_removed_edges(all_parentless, all_removed_edges):
     # show the plot
     plt.show()
     
+
+
+def plot_parentless_and_removed_and_wtc(all_parentless, all_removed_edges, wtcs):
+    avg_parent = []
+    avg_edge = []
+    avg_wtcs = []
+    size = len(all_parentless)
+
+    
+    step_size = 50
+    for i in range(0, size - step_size - 1, step_size):
+        avg_parent.append(np.mean(all_parentless[i:i + step_size]))
+        avg_edge.append(np.mean(all_removed_edges[i:i + step_size]))
+        avg_wtcs.append(np.mean(wtcs[i:i + step_size]))
+    
+
+    
+    
+    plt.rcParams['figure.dpi'] = 600
+    sns.regplot(x=avg_wtcs, y=avg_parent, label="Parentless Nodes")
+    sns.regplot(x=avg_wtcs, y=avg_edge, label = "Removed Edges")
+    plt.xlabel("Willingness to Compute")
+    plt.ylabel("Parentless Nodes and Removed Edges")
+    plt.title("Parentless Nodes and Removed Edges as a Function of WTC")
+    plt.legend()
+    plt.show()  
+
+def plot_avg_trust_and_wtc(avg_trusts, wtcs):
+    plt.rcParams['figure.dpi'] = 600
+    sns.regplot(x=wtcs[20:], y=avg_trusts[20:])
+    plt.xlabel("Willingness to Compute")
+    plt.ylabel("Average Trustworthiness")
+    plt.title("Average Trustworthiness as a Function of Willingness to Compute")
+    plt.show()  
     
     
 
@@ -384,12 +467,12 @@ def plot_avg_vs_user_trusts(user_trusts):
 
     
     # Add a linear regression line using seaborn
-    plt.plot(_x, [0.5 for _ in range(len(user_trusts))], label='Average Network Trust')
-    sns.regplot(x=_x, y=user_trusts, label='Average User Trust')
+    plt.plot(_x, [0.5 for _ in range(len(user_trusts))], label='Average Document Connection Trust')
+    sns.regplot(x=_x, y=user_trusts, label='Average User Connection Trust')
     
     
     # Add title and labels
-    plt.title('Average Trust of the Network vs. Average Trust of User Connections')
+    plt.title('Average Trust of the Document Connections vs. Average Trust of User Connections')
     plt.xlabel('Iterations')
     plt.ylabel('Average Trust')
     
