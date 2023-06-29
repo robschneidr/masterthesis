@@ -89,38 +89,26 @@ if __name__ == "__main__":
     
 
   
-
-    # Generate example datasets
-    data1 = np.random.normal(0, 1, 1000)
-    data2 = np.random.normal(2, 0.5, 1000)
-    data3 = np.random.normal(-2, 1.5, 1000)
+    x = [1, 2, 3, 4, 5]  # X-axis values
+    y1 = [10, 15, 7, 12, 9]  # First y-axis values
+    y2 = [900, 350, 50, 420, 70]  # Second y-axis values
     
-    # Fit a normal distribution to each dataset
-    params1 = norm.fit(data1)
-    params2 = norm.fit(data2)
-    params3 = norm.fit(data3)
+    fig, ax1 = plt.subplots()  # First subplot with left y-axis
+    ax2 = ax1.twinx()  # Second subplot with right y-axis
     
-    # Plot histograms for each dataset
-    plt.hist(data1, bins=30, density=True, alpha=0.5, label='Dataset 1')
-    plt.hist(data2, bins=30, density=True, alpha=0.5, label='Dataset 2')
-    plt.hist(data3, bins=30, density=True, alpha=0.5, label='Dataset 3')
+    sns.regplot(x=x, y=y1, ax=ax1, color='g', label='Y1')  # Regression plot for the first y-axis
+    sns.regplot(x=x, y=y2, ax=ax2, color='b', label='Y2')  # Regression plot for the second y-axis
     
-    # Plot estimated normal distribution curves
-    x = np.linspace(-6, 6, 1000)
-    pdf1 = norm.pdf(x, params1[0], params1[1])
-    pdf2 = norm.pdf(x, params2[0], params2[1])
-    pdf3 = norm.pdf(x, params3[0], params3[1])
+    ax1.set_xlabel('X-axis')
+    ax1.set_ylabel('Y1-axis', color='g')
+    ax2.set_ylabel('Y2-axis', color='b')
     
-    plt.plot(x, pdf1, color='red', linewidth=2, label='Normal Distribution (Dataset 1)')
-    plt.plot(x, pdf2, color='blue', linewidth=2, label='Normal Distribution (Dataset 2)')
-    plt.plot(x, pdf3, color='green', linewidth=2, label='Normal Distribution (Dataset 3)')
+    ax1.tick_params(axis='y', labelcolor='g')
+    ax2.tick_params(axis='y', labelcolor='b')
     
-    # Add legend and labels
-    plt.legend()
-    plt.xlabel('Value')
-    plt.ylabel('Probability Density')
+    ax1.legend(loc='upper left')
+    ax2.legend(loc='upper right')
     
-    # Display the plot
     plt.show()
 
     

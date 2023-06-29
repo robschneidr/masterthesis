@@ -222,6 +222,68 @@ def plot_false_factors_and_wtc(n_false_factors, wtcs):
     plt.ylabel("Number of False Factors")
     plt.title("Number of False Factors as a Function of Willingness to Compute")
     plt.show()
+    
+def plot_order_similarities_narrow_broad(query_factors, private_auth, avg_trusts_top):
+    plt.rcParams['figure.dpi'] = 600
+    
+    private_auth_cumu = dict()
+    private_auth_count = dict()
+    avg_trust_top_cumu = dict()
+    avg_trust_top_count = dict()
+    
+    for q, p, a in zip(query_factors, private_auth, avg_trusts_top):
+        key = sum(q.keys())
+        if key in private_auth_cumu:
+            private_auth_cumu[key] += p
+        else:
+            private_auth_cumu[key] = p
+            
+        if key in private_auth_count:
+            private_auth_count[key] += 1
+        else:
+            private_auth_count[key] = 1
+            
+        if key in avg_trust_top_cumu:
+            avg_trust_top_cumu[key] += a
+        else:
+            avg_trust_top_cumu[key] = a
+            
+        if key in avg_trust_top_count:
+            avg_trust_top_count[key] += 1
+        else:
+            avg_trust_top_count[key] = 1
+            
+    x = [k for k in private_auth_cumu.keys() if k < 75]
+    x.sort()
+    y1 = []
+    y2 = []
+            
+    for key in x:
+        
+        y1.append(private_auth_cumu[key] / private_auth_count[key])
+        y2.append(avg_trust_top_cumu[key] / avg_trust_top_count[key])
+
+            
+    
+    fig, ax1 = plt.subplots()  # First subplot with left y-axis
+    ax2 = ax1.twinx()  # Second subplot with right y-axis
+    
+    sns.regplot(x=x, y=y1, ax=ax1, color='g')  # Regression plot for the first y-axis
+    sns.regplot(x=x, y=y2, ax=ax2, color='b')  # Regression plot for the second y-axis
+    
+    ax1.set_xlabel('Search Query Width (From Broad to Narrow)')
+    ax1.set_ylabel('Difference HITS - Private Ranking', color='g')
+    ax2.set_ylabel('Average Trustworthiness of Top HITS Nodes', color='b')
+    
+    ax1.tick_params(axis='y', labelcolor='g')
+    ax2.tick_params(axis='y', labelcolor='b')
+    
+    plt.title("Comparing Broad to Narrow Search Queries")
+    
+    
+    
+    plt.show()
+    
 
 
 def plot_order_similarities(rnd, private, public):

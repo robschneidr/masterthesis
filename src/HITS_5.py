@@ -190,6 +190,15 @@ notes:
 
 '''_______________________________UTILS_____________________________________''' 
 
+def get_avg_trust_top_results(nodes, ranking, n_top_results = 5):
+    
+    _n_top_results = min(len(ranking), n_top_results)
+    top_results = ranking[-_n_top_results:]
+    trusts = [G.get_trustworthiness(nodes, nodes[n_id]) for n_id in ranking]
+    return np.mean(trusts)
+    
+    
+
 def mean_nodes_order_similarity(nodeIDs_A, nodeIDs_B):
     
      switched_order_A = dict()
@@ -494,7 +503,7 @@ def set_false_factor_probability(node, root_set, root_set_IDs, avg_ranking_value
     
     #print("cur rank:", current_ranking_value, "new rank:", new_ranking_value, node.false_factor_probability)
     node.false_factor_probability = F.rankingValue_to_falseFactorProbability(new_ranking_value)
-    node.willingness_to_compute = max(1, 1 - node.false_factor_probability)
+    node.willingness_to_compute = max(0, 1 - node.false_factor_probability)
     #node.willingness_to_compute = 1 - node.false_factor_probability
     
     #print("cur rank:", current_ranking_value, "new rank:", new_ranking_value, node.false_factor_probability)
@@ -503,6 +512,7 @@ def set_false_factor_probability(node, root_set, root_set_IDs, avg_ranking_value
 def get_n_false_factors(nodes):
     return sum(abs(len(n.public_factors) - len(n.private_factors)) for n in nodes)
         
+
 
 
         
@@ -551,6 +561,9 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
     wtcs = []
     avg_false_factor_probabilities = []
     avg_trusts = []
+    avg_trust_top_results = []
+    all_query_factors = []
+
     
     
     
@@ -603,6 +616,10 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
             order_similarities_rnd_auth.append(order_similarity_rnd_auth)
             order_similarities_private_auth.append(order_similarity_private_auth)
             order_similarities_public_auth.append(order_similarity_public_auth)
+            avg_trust_top_results.append(get_avg_trust_top_results(nodes, sorted_nodes_auths_IDs))
+            all_query_factors.append(query_factors)
+            
+            
             
             if nth_query % 50 == 0:
                 print("query factors: ", query_factors)
@@ -643,6 +660,7 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
         #print(compression_ratio_public, n_steps_public, cumulative_number_public)
         print()
     
+    vis.plot_order_similarities_narrow_broad(all_query_factors, order_similarities_private_auth, avg_trust_top_results)
     vis.plot_estimated_kolmogorov(nodes)
     vis.plot_FFP_distribution2([n.false_factor_probability for n in nodes])
     vis.plot_FFP_distribution([n.false_factor_probability for n in nodes])    
@@ -656,7 +674,7 @@ def HITS_iteration(nodes, n_search_queries, n_steps=5,
         
         
 
-def HITS_one_step(all_nodes, subset_nodes):
+def HITS_one_step(all_nodes, subset_nodes, original_HITS=False):
     
     #nodes old is required so the algorithm does not take the already updated
     #values in the for loop.
@@ -665,11 +683,14 @@ def HITS_one_step(all_nodes, subset_nodes):
     for node in subset_nodes:
         
         #TODO turn back to trust inclusion again
-        #node.auth = sum(nodes_old[p._id].hub * nodes_old[p._id].edges.get(node._id) for p in node.parents)
-        #node.hub = sum(nodes_old[c._id].auth * nodes_old[node._id].edges.get(c._id) for c in node.children)
+        if original_HITS:
+            node.auth = sum(nodes_old[p._id].hub for p in node.parents)
+            node.hub = sum(nodes_old[c._id].auth for c in node.children)
         
-        node.auth = sum(nodes_old[p._id].hub for p in node.parents)
-        node.hub = sum(nodes_old[c._id].auth for c in node.children)
+        else:
+            node.auth = sum(nodes_old[p._id].hub * nodes_old[p._id].edges.get(node._id) for p in node.parents)
+            node.hub = sum(nodes_old[c._id].auth * nodes_old[node._id].edges.get(c._id) for c in node.children)
+        
         
     normalize_auths(subset_nodes, sum(n.auth for n in all_nodes))
     normalize_hubs(subset_nodes, sum(n.hub for n in all_nodes))
