@@ -610,6 +610,39 @@ def heatmap_hub_rankings(hubs, names):
     # display the plot
     plt.show()
     
+def plot_auth_distribution_transitions(auth_distributions, names):
+    
+    plt.rcParams['figure.dpi'] = 600
+    
+    # Compute intermediate distributions
+    distributions = auth_distributions
+    
+    # Plot the transition using histograms
+    fig, axes = plt.subplots(len(names), 5, figsize=(15, len(names) * 3))
+    
+    row_titles = names
+    
+    for row, intermediate_distributions in enumerate(distributions):
+        for col, distribution in enumerate(intermediate_distributions):
+            sns.histplot(distribution, kde=True, ax=axes[row, col], color='skyblue')
+            axes[row, col].set_title(f'Iteration {col*5}/{20}')
+            axes[row, col].set_xlabel('')
+            axes[row, col].set_ylabel('')
+            
+            #axes[row, col].relim()
+            if row == 2 or row == 3 or row == 4:
+                #axes[row, col].set_xlim(0, 0.05)
+                pass
+                
+            #axes[row, col].set_xlim(-5, 10)  # Adjust x-axis limits if needed
+    
+        axes[row, 0].set_ylabel(row_titles[row])
+    
+
+    
+    plt.tight_layout()
+    plt.show()
+    
     
     
 if __name__ == "__main__":

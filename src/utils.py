@@ -86,75 +86,58 @@ def plot_equivalence_points_distribution():
 
 
 if __name__ == "__main__":
+
+    # Generate data for the initial distributions
+    np.random.seed(0)
+    initial_distributions = [
+        np.random.normal(loc=0, scale=1, size=1000),
+        np.random.uniform(low=-1, high=1, size=1000),
+        np.random.exponential(scale=1, size=1000),
+        np.random.gamma(shape=2, scale=1, size=1000),
+        np.random.lognormal(mean=0, sigma=1, size=1000)
+    ]
+    
+    # Generate data for the target distributions
+    np.random.seed(1)
+    target_distributions = [
+        np.random.normal(loc=3, scale=1.5, size=1000),
+        np.random.uniform(low=2, high=4, size=1000),
+        np.random.exponential(scale=2, size=1000),
+        np.random.gamma(shape=4, scale=0.5, size=1000),
+        np.random.lognormal(mean=1, sigma=1, size=1000)
+    ]
+    
+    # Set up the transition steps (e.g., 5 steps)
+    transition_steps = 5
+    
+    # Compute intermediate distributions
+    distributions = []
+    for initial, target in zip(initial_distributions, target_distributions):
+        intermediate_distributions = []
+        for step in range(transition_steps + 1):
+            intermediate_distribution = (
+                initial * (transition_steps - step) / transition_steps
+                + target * step / transition_steps
+            )
+            intermediate_distributions.append(intermediate_distribution)
+        distributions.append(intermediate_distributions)
+    
+    # Plot the transition using histograms
+    fig, axes = plt.subplots(5, 5, figsize=(15, 12))
+    
+    row_titles = ['Distribution 1', 'Distribution 2', 'Distribution 3', 'Distribution 4', 'Distribution 5']
+    
+    for row, intermediate_distributions in enumerate(distributions):
+        for col, distribution in enumerate(intermediate_distributions[:5]):
+            sns.histplot(distribution, kde=True, ax=axes[row, col], color='skyblue')
+            axes[row, col].set_title(f'Step {col*5}/{20}')
+            axes[row, col].set_xlabel('')
+            axes[row, col].set_ylabel('')
+            axes[row, col].set_xlim(-5, 10)  # Adjust x-axis limits if needed
+    
+        axes[row, 0].set_ylabel(row_titles[row])
     
 
-  
-    x = [1, 2, 3, 4, 5]  # X-axis values
-    y1 = [10, 15, 7, 12, 9]  # First y-axis values
-    y2 = [900, 350, 50, 420, 70]  # Second y-axis values
     
-    fig, ax1 = plt.subplots()  # First subplot with left y-axis
-    ax2 = ax1.twinx()  # Second subplot with right y-axis
-    
-    sns.regplot(x=x, y=y1, ax=ax1, color='g', label='Y1')  # Regression plot for the first y-axis
-    sns.regplot(x=x, y=y2, ax=ax2, color='b', label='Y2')  # Regression plot for the second y-axis
-    
-    ax1.set_xlabel('X-axis')
-    ax1.set_ylabel('Y1-axis', color='g')
-    ax2.set_ylabel('Y2-axis', color='b')
-    
-    ax1.tick_params(axis='y', labelcolor='g')
-    ax2.tick_params(axis='y', labelcolor='b')
-    
-    ax1.legend(loc='upper left')
-    ax2.legend(loc='upper right')
-    
+    plt.tight_layout()
     plt.show()
-
-    
-    
-
-
-
-
-    
-
-
-     
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    

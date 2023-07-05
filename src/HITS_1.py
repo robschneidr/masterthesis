@@ -11,6 +11,7 @@ import copy
 import numpy as np
 import matplotlib.pyplot as plt
 import visualization as v
+import sys
 
 
 
@@ -192,6 +193,8 @@ def normalize_auths(nodes, sum_auths):
     for node in nodes:
         node.auth /= sum_auths
         
+    print("check ", sum([node.auth for node in nodes]))
+        
         
 def set_all_hubs(nodes, hubs):
     for node, hub in zip(nodes, hubs):
@@ -211,6 +214,8 @@ def set_all_trusts(nodes, trusts):
 def normalize_trusts(nodes, sum_trusts):
     for node in nodes:
         node.trust /= sum_trusts
+        
+    
 
         
 def get_root_set(nodes, size, IDs=None):
@@ -227,7 +232,7 @@ def get_root_set(nodes, size, IDs=None):
     
 def HITS_iteration(nodes, n_search_queries, root_set_size, n_steps,
                    trust_included=False, trust_normalized=False, edge_trust=False, edge_trust_auth=False, 
-                   auth=-1, hub=-1, trust=-1):
+                   auth=-1, hub=-1, trust=-1, auth_distribution=[]):
     
     
     print_hubAuthTrust_values(nodes)
@@ -241,8 +246,10 @@ def HITS_iteration(nodes, n_search_queries, root_set_size, n_steps,
         print([n._id for n in root_set])
         #print_hubAuthTrust_values(nodes)
     
-        for _ in range(n_steps):
+        for i in range(n_steps):
             HITS_one_step(nodes, root_set, trust_included, trust_normalized, edge_trust, edge_trust_auth)
+            if i % 5 == 0:
+                auth_distribution.append([n.auth for n in nodes])
             #print_hubAuthTrust_values(nodes)
     
     print_hubAuthTrust_values(nodes)
@@ -258,45 +265,72 @@ def HITS_one_step(all_nodes, subset_nodes, trust_included, trust_normalized, edg
 
     #nodes old is required so the algorithm does not take the already updated
     #values in the for loop.
-    nodes_old = copy.deepcopy(all_nodes)
+    #nodes_old = copy.deepcopy(all_nodes)
+    #nodes_old = [copy.deepcopy(n) for n in all_nodes]
+    
+    auths_old = dict()
+    hubs_old = dict()
+    trusts_old = dict()
+    edges_old = []
+    
+    for n in all_nodes:
+        auths_old[n._id] = n.auth
+        hubs_old[n._id] = n.hub
+        trusts_old[n._id] = n.trust
+        edges_old.append(n.edges)
+        
+        
             
    
     for node in subset_nodes:
         
-        parents = node.parents
-        children = node.children
+        parents = [n._id for n in node.parents]
+        children = [n._id for n in node.children]
         
         if trust_included:
             if edge_trust:
                 if edge_trust_auth:
-                    node.auth = sum(nodes_old[p._id].hub * nodes_old[p._id].edges.get(node._id) for p in parents)
+                    #node.auth = sum(nodes_old[p._id].hub * nodes_old[p._id].edges.get(node._id) for p in parents)
+                    node.auth = sum(hubs_old[p] * edges_old[p].get(node._id) for p in parents)
                 else:
-                    node.auth = sum(nodes_old[p._id].hub for p in parents)
+                    #node.auth = sum(nodes_old[p._id].hub for p in parents)
+                    node.auth = sum(hubs_old[p] for p in parents)
             else:
-                node.auth = sum(nodes_old[p._id].hub * nodes_old[p._id].trust for p in parents)
+                #node.auth = sum(nodes_old[p._id].hub * nodes_old[p._id].trust for p in parents)
+                node.auth = sum(hubs_old[p] * trusts_old[p] for p in parents)
         else:         
-            node.auth = sum(nodes_old[p._id].hub for p in parents)
+            #node.auth = sum(nodes_old[p._id].hub for p in parents)
+            node.auth = sum(hubs_old[p] for p in parents)
 
         
         
         if trust_included:
             if edge_trust:
-                node.hub = sum(nodes_old[c._id].auth * nodes_old[node._id].edges.get(c._id) for c in children)
+                #node.hub = sum(nodes_old[c._id].auth * nodes_old[node._id].edges.get(c._id) for c in children)
+                node.hub = sum(auths_old[c] * edges_old[node._id].get(c) for c in children)
             else:
-                node.hub = sum(nodes_old[c._id].auth * nodes_old[c._id].trust for c in children)
+                #node.hub = sum(nodes_old[c._id].auth * nodes_old[c._id].trust for c in children)
+                node.hub = sum(auths_old[c] * trusts_old[c] for c in children)
                 
         else:
-            node.hub = sum(nodes_old[c._id].auth for c in children)
+            #node.hub = sum(nodes_old[c._id].auth for c in children)
+            node.hub = sum(auths_old[c] for c in children)
 
         
         
         if trust_normalized:
-            sum_parents = sum(nodes_old[p._id].trust * nodes_old[p._id].hub for p in parents)
-            sum_children = sum(nodes_old[c._id].trust * nodes_old[c._id].auth for c in children)
-            node.trust = sum_parents + sum_children
+            #sum_parents = sum(nodes_old[p._id].trust * nodes_old[p._id].hub for p in parents)
+            sum_parents = sum(trusts_old[p] * hubs_old[p] for p in parents)
+            #sum_children = sum(nodes_old[c._id].trust * nodes_old[c._id].auth for c in children)
+            sum_children = sum(trusts_old[c] * auths_old[c] for c in children)
+            #node.trust = sum_parents + sum_children
+            #TODO cleared the inconsistency. trust will be set randomly
+            #at the beginning and then left alone
         else:
-            sum_parents = sum(nodes_old[p._id].trust for p in parents)
-            sum_children = sum(nodes_old[c._id].trust for c in children)
+            #sum_parents = sum(nodes_old[p._id].trust for p in parents)
+            sum_parents = sum(trusts_old[p] for p in parents)
+            #sum_children = sum(nodes_old[c._id].trust for c in children)
+            sum_children = sum(trusts_old[c] for c in children)
             
             if len(parents) > 0 or len(children) > 0:
                 node.trust = (sum_parents + sum_children) / (len(parents) + len(children))
@@ -329,15 +363,15 @@ def mean_nodes_order_similarity(nodeIDs_A, nodeIDs_B):
      switched_order_A = [0 for _ in range(len(nodeIDs_A))]
      switched_order_B = [0 for _ in range(len(nodeIDs_B))]
      
-     print(nodeIDs_A)
-     print(nodeIDs_B)
+     #print(nodeIDs_A)
+     #print(nodeIDs_B)
      
      for i in range(len(nodeIDs_A)):
          switched_order_A[nodeIDs_A[i]] = i
          switched_order_B[nodeIDs_B[i]] = i
          
-     print(switched_order_A)
-     print(switched_order_B)
+     #print(switched_order_A)
+     #print(switched_order_B)
      
      sum_differences = 0    
      for A, B in zip(switched_order_A, switched_order_B):
@@ -350,13 +384,13 @@ def mean_nodes_order_similarity(nodeIDs_A, nodeIDs_B):
     
 def get_sorted_nodes(nodes):
     
-    sorted_nodes_auth = copy.deepcopy(nodes)
+    sorted_nodes_auth = copy.copy(nodes)
     sorted_nodes_auth.sort(key=sort_by_auth)
     
-    sorted_nodes_hub = copy.deepcopy(nodes)
+    sorted_nodes_hub = copy.copy(nodes)
     sorted_nodes_hub.sort(key=sort_by_hub) 
 
-    sorted_nodes_trust = copy.deepcopy(nodes)
+    sorted_nodes_trust = copy.copy(nodes)
     sorted_nodes_trust.sort(key=sort_by_trust)
     
     return sorted_nodes_auth, sorted_nodes_hub, sorted_nodes_trust
@@ -398,7 +432,7 @@ def get_sorted_nodeIDs(params, sorted_nodes_auths, sorted_nodes_hubs, sorted_nod
                       
         for i, param in enumerate(params):
             sorted_nodeIDs.append([node._id for node in vals[i]])
-            print([node._id for node in vals[i]], "node " + value_name + " order " + param[name_id])
+            #print([node._id for node in vals[i]], "node " + value_name + " order " + param[name_id])
             
         print()
         
@@ -465,12 +499,14 @@ def plot_node_rankings(params, sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted
 
 if __name__ == '__main__':
     
-    n_steps = 20
-    n_nodes = 20
-    n_edges = 80
+   
+    
+    n_steps = 21
+    n_nodes = 1000   
+    n_edges = 4000
     n_users = n_nodes
     n_known_nodes = 5
-    n_search_queries = 500
+    n_search_queries = 1
     
     n_search_queries_id = 0
     root_set_size_id = 1
@@ -499,11 +535,11 @@ if __name__ == '__main__':
 
     
     
-    #base_nodes = G.create_random_weighted_directed_document_nodes(n_nodes, n_edges)
-    base_nodes = G.load_graph("rnd_20n_60e_1")
-    G.visualize(base_nodes)
+    base_nodes = G.create_random_weighted_directed_document_nodes(n_nodes, n_edges)
+    #base_nodes = G.load_graph("rnd_1000n_4000e_1")
+    #G.visualize(base_nodes)
     print_parents_children(base_nodes)
-    #G.save_graph(base_nodes, "rnd_20n_60e_1")
+    #G.save_graph(base_nodes, "rnd_1000n_4000e_2")
     
     params = set_params(std_HITS_param,
                         std_HITS_rndHubAuth_param, 
@@ -518,17 +554,20 @@ if __name__ == '__main__':
     
     #params = [params[0], params[-1]]
     #params = [params[2]]
+    #params = [params[0], params[2], params[5], params[7], params[8]]
+    #params = [params[0]]
     
-    node_copies = [copy.deepcopy(base_nodes) for nodes in range(len(params))]
+    node_copies = [G.create_nodes_copy(base_nodes) for nodes in range(len(params))]
     
     
     sorted_nodes_auths = []
     sorted_nodes_hubs = []
     sorted_nodes_trusts = []
     unsorted_nodes = []
+    auth_distributions = [[] for _ in range(len(params))]
     
     
-    for nodes, param in zip(node_copies, params):
+    for nodes, param, auth_distribution in zip(node_copies, params, auth_distributions):
         
         print("\n\n", param[name_id], "\n")
         #print_parents_children(nodes)
@@ -544,7 +583,8 @@ if __name__ == '__main__':
                        param[edge_trust_auth_id],
                        param[auth_id],
                        param[hub_id],
-                       param[trust_id])
+                       param[trust_id],
+                       auth_distribution)
         
 
         
@@ -562,8 +602,18 @@ if __name__ == '__main__':
     
     sorted_nodeIDs_auths, sorted_nodeIDs_hubs, sorted_nodeIDs_trusts = get_sorted_nodeIDs(params, sorted_nodes_auths, sorted_nodes_hubs, sorted_nodes_trusts)    
     
+    mean_order_similarities = []
+    for sorted_nodeIDs_auth, param in zip(sorted_nodeIDs_auths, params):
+        mean_order_similarities.append((mean_nodes_order_similarity(sorted_nodeIDs_auths[0], sorted_nodeIDs_auth), param[name_id]))
+    print(mean_order_similarities)
+    
+    '''for row in auth_distributions:
+        for col in row:
+            print(col)
+        print()'''
+    v.plot_auth_distribution_transitions(auth_distributions, [param[name_id] for param in params])
     #v.heatmap_auth_rankings(sorted_nodeIDs_auths, [param[name_id] for param in params])
-    v.heatmap_hub_rankings(sorted_nodeIDs_hubs, [param[name_id] for param in params])
+    #v.heatmap_hub_rankings(sorted_nodeIDs_hubs, [param[name_id] for param in params])
     #v.heatmap_adjacency_matrix(nodes)
     #v.heatmap_trusts(get_trust_values(unsorted_nodes[5:7]), [param[name_id] for param in params[5:7]])
     #v.heatmap_trusts(get_trust_values(unsorted_nodes), [param[name_id] for param in params])

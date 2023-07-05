@@ -10,6 +10,7 @@ import networkx as nx
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
+from copy import deepcopy
 
 
 
@@ -42,7 +43,19 @@ class Node:
         return self._type == 'user'
     
 
-    
+def create_nodes_copy(nodes):
+      new_nodes = [Node(n._id, NodeType_Document()) for n in nodes]
+      for old, new in zip(nodes, new_nodes):
+          new.parents = [new_nodes[p._id] for p in old.parents]
+          new.children = [new_nodes[c._id] for c in old.children]
+          new.edges = deepcopy(old.edges)
+          new.auth = old.auth
+          new.hub = old.hub
+          new.trust = old.trust
+          new.known_nodes = deepcopy(old.known_nodes)
+          
+      return new_nodes 
+          
         
 def EdgeTrustInit():
     return 1       
