@@ -4,7 +4,7 @@ save_data_on_exit = True
 save_history = True
 save_non_project_files = False
 project_type = 'empty-project-type'
-recent_files = ['src\\visualization.py', 'src\\HITS_1.py', 'src\\Graph_1.py', '..\\..\\..\\anaconda3\\lib\\copy.py', 'src\\utils.py']
+recent_files = ['src\\Graph_1_2.py', 'src\\HITS_1_2.py', 'src\\visualization.py']
 
 [main]
 version = 0.2.0

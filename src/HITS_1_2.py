@@ -65,11 +65,16 @@ def HITS_iteration(nodes,
                    trust_belief, 
                    trust_node, 
                    trust_connection, 
-                   auth_distribution):
+                   auth_distribution,
+                   sorted_auths,
+                   params):
     
-       
+    
+
     for i in range(n_steps):
         HITS_one_step(nodes, std_HITS, trust_normalized, trust_belief, trust_node, trust_connection)
+        a, _, _ = get_sorted_nodes(nodes)
+        sorted_auths.append([n._id for n in a])
         
         if i % 5 == 0:
             auth_distribution.append([n.auth for n in nodes])
@@ -300,9 +305,9 @@ if __name__ == '__main__':
 
     
     
-    #base_nodes = G.create_random_weighted_directed_document_nodes(n_nodes, n_edges)
-    base_nodes = G.load_graph("rnd_20n80e_2")
-    G.visualize(base_nodes)
+    base_nodes = G.create_random_weighted_directed_document_nodes(n_nodes, n_edges)
+    #base_nodes = G.load_graph("rnd_20n80e_2")
+    #G.visualize(base_nodes)
     print_parents_children(base_nodes)
     #G.save_graph(base_nodes, "rnd_20n80e_2")
     
@@ -325,9 +330,10 @@ if __name__ == '__main__':
     sorted_nodes_trusts = []
     unsorted_nodes = []
     auth_distributions = [[] for _ in range(len(params))]
+    all_sorted_auths = [[] for _ in range(len(params))]
     
     
-    for nodes, param, auth_distribution in zip(node_copies, params, auth_distributions):
+    for nodes, param, auth_distribution, sorted_auth in zip(node_copies, params, auth_distributions, all_sorted_auths):
         
         print("\n\n", param[name_id], "\n")
 
@@ -338,7 +344,9 @@ if __name__ == '__main__':
                        param[2],
                        param[3],
                        param[4],                       
-                       auth_distribution)
+                       auth_distribution,
+                       sorted_auth,
+                       params)
         
 
         
@@ -361,14 +369,30 @@ if __name__ == '__main__':
         mean_order_similarities.append((mean_nodes_order_similarity(sorted_nodeIDs_auths[0], sorted_nodeIDs_auth), param[name_id]))
     print(mean_order_similarities)
     
+    all_mean_similarities = []
+    std_sorted_auth = copy.deepcopy(all_sorted_auths[0])
+    for s_a, param in zip(all_sorted_auths, params):
+        mean_similarities = []
+        for a, std_a in zip(s_a, std_sorted_auth):
+            if param[name_id] == "Standard HITS":
+                random.shuffle(a)
+
+            mean_similarities.append(mean_nodes_order_similarity(a, std_a))
+        all_mean_similarities.append(mean_similarities)
+        
+    print(all_mean_similarities)
+            
+    
     '''for row in auth_distributions:
         for col in row:
             print(col)
         print()'''
     v.plot_auth_distribution_transitions(auth_distributions, [param[name_id] for param in params])
     v.heatmap_auth_rankings(sorted_nodeIDs_auths, [param[name_id] for param in params])
-    v.heatmap_hub_rankings(sorted_nodeIDs_hubs, [param[name_id] for param in params])
-    #v.heatmap_adjacency_matrix(nodes)
+    #v.heatmap_hub_rankings(sorted_nodeIDs_hubs, [param[name_id] for param in params])
+    v.heatmap_adjacency_matrix(nodes)
+    v.heatmap_trust(nodes, sorted_nodeIDs_trusts[0])
+    v.evolution_mean_order_similarities(all_mean_similarities, params)
     #v.heatmap_trusts(get_trust_values(unsorted_nodes[5:7]), [param[name_id] for param in params[5:7]])
     #v.heatmap_trusts(get_trust_values(unsorted_nodes), [param[name_id] for param in params])
     

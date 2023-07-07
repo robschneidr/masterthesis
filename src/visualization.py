@@ -559,7 +559,42 @@ def heatmap_trusts(trusts, names):
     
     # display the plot
     plt.show()
+    
+def evolution_mean_order_similarities(similarities, params):
+    plt.rcParams['figure.dpi'] = 600
+    
+    x = range(len(similarities[0]))
+    
+    for s, param in zip(similarities, params):
+        if param[5] == "Standard HITS":
+            sns.lineplot(x=x, y=s, label="Random Order")
+        else:   
+            sns.lineplot(x=x, y=s, label=param[5])
+    
+    plt.xlabel('Iterations')
+    plt.ylabel('Mean Order Difference')
+    plt.title('Mean Order Differences Compared to Standard HITS')
+    
+    # Display the legend
+    plt.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    
+    plt.show()
 
+def heatmap_trust(nodes, trust_IDs):
+    
+    plt.rcParams['figure.dpi'] = 600
+    y = [nodes[_id].trust for _id in trust_IDs]
+    x = [str(_id) for _id in trust_IDs]
+    
+    sns.scatterplot(x=x, y=y)
+    
+    plt.xlabel('Node ID')
+    plt.ylabel('Trust Values')
+    plt.title('Distribution of Trust Values Among Nodes')
+    
+    plt.show()
+    
+    
 def heatmap_adjacency_matrix(nodes):
     matrix = np.zeros((len(nodes), len(nodes)))
     for n in nodes:
